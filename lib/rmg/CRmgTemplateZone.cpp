@@ -156,6 +156,7 @@ void CTileInfo::setRoadType(ERoadType::ERoadType value)
 CRmgTemplateZone::CRmgTemplateZone() :
 	id(0),
 	type(ETemplateZoneType::PLAYER_START),
+	owner(boost::none),
 	size(1),
 	townsAreSameType(false),
 	matchTerrainToTown(true),
@@ -391,6 +392,10 @@ std::set<int3> CRmgTemplateZone::getTileInfo () const
 {
 	return tileinfo;
 }
+std::set<int3> CRmgTemplateZone::getPossibleTiles() const
+{
+	return possibleTiles;
+}
 
 void CRmgTemplateZone::discardDistantTiles (CMapGenerator* gen, float distance)
 {
@@ -422,22 +427,31 @@ void CRmgTemplateZone::initFreeTiles (CMapGenerator* gen)
 		return gen->isPossible(tile);
 	});
 	if (freePaths.empty())
+	{
+		gen->setOccupied(pos, ETileType::FREE);
 		freePaths.insert(pos); //zone must have at least one free tile where other paths go - for instance in the center
+	}
 }
 
 void CRmgTemplateZone::createBorder(CMapGenerator* gen)
 {
 	for (auto tile : tileinfo)
 	{
-		gen->foreach_neighbour (tile, [this, gen](int3 &pos)
+		bool edge = false;
+		gen->foreach_neighbour(tile, [this, gen, &edge](int3 &pos)
 		{
-			if (!vstd::contains(this->tileinfo, pos))
+			if (edge)
+				return; //optimization - do it only once
+			if (gen->getZoneID(pos) != id) //optimization - better than set search
 			{
-				gen->foreach_neighbour (pos, [this, gen](int3 &pos)
+				//we are edge if at least one tile does not belong to zone
+				//mark all nearby tiles blocked and we're done
+				gen->foreach_neighbour (pos, [this, gen](int3 &nearbyPos)
 				{
-					if (gen->isPossible(pos))
-						gen->setOccupied (pos, ETileType::BLOCKED);
+					if (gen->isPossible(nearbyPos))
+						gen->setOccupied(nearbyPos, ETileType::BLOCKED);
 				});
+				edge = true; 
 			}
 		});
 	}
@@ -662,7 +676,7 @@ do not leave zone border
 				{
 					if (!gen->isBlocked(pos))
 					{
-						if (vstd::contains (tileinfo, pos))
+						if (gen->getZoneID(pos) == id)
 						{
 							if (gen->isPossible(pos))
 							{
@@ -699,7 +713,7 @@ do not leave zone border
 			{
 				if (currentPos.dist2dSQ(dst) < lastDistance) //try closest tiles from all surrounding unused tiles
 				{
-					if (vstd::contains(tileinfo, pos))
+					if (gen->getZoneID(pos) == id)
 					{
 						if (gen->isPossible(pos))
 						{
@@ -798,7 +812,7 @@ bool CRmgTemplateZone::createRoad(CMapGenerator* gen, const int3& src, const int
 					//if (gen->map->checkForVisitableDir(currentNode, &gen->map->getTile(pos), pos)) //TODO: why it has no effect?
 					if (gen->isFree(pos) || pos == dst || (obj && obj->ID == Obj::MONSTER))
 					{
-						if (vstd::contains(this->tileinfo, pos) || pos == dst) //otherwise guard position may appear already connected to other zone.
+						if (gen->getZoneID(pos) == id || pos == dst) //otherwise guard position may appear already connected to other zone.
 						{
 							cameFrom[pos] = currentNode;
 							open.insert(pos);
@@ -866,18 +880,19 @@ bool CRmgTemplateZone::connectPath(CMapGenerator* gen, const int3& src, bool onl
 		{
 			auto foo = [gen, this, &open, &closed, &cameFrom, &currentNode, &distances](int3& pos) -> void
 			{
+				if (gen->isBlocked(pos)) //no paths through blocked or occupied tiles
+					return;
+
 				int distance = distances[currentNode] + 1;
 				int bestDistanceSoFar = 1e6; //FIXME: boost::limits
 				auto it = distances.find(pos);
 				if (it != distances.end())
 					bestDistanceSoFar = it->second;
 
-				if (gen->isBlocked(pos)) //no paths through blocked or occupied tiles
-					return;
 				if (distance < bestDistanceSoFar || !vstd::contains(closed, pos))
 				{
 					//auto obj = gen->map->getTile(pos).topVisitableObj();
-					if (vstd::contains(this->tileinfo, pos))
+					if (gen->getZoneID(pos) == id)
 					{
 						cameFrom[pos] = currentNode;
 						open.insert(pos);
@@ -961,7 +976,7 @@ bool CRmgTemplateZone::connectWithCenter(CMapGenerator* gen, const int3& src, bo
 				if (distance < bestDistanceSoFar || !vstd::contains(closed, pos))
 				{
 					//auto obj = gen->map->getTile(pos).topVisitableObj();
-					if (vstd::contains(this->tileinfo, pos))
+					if (gen->getZoneID(pos) == id)
 					{
 						cameFrom[pos] = currentNode;
 						open.insert(pos);
@@ -1489,11 +1504,7 @@ void CRmgTemplateZone::initTerrainType (CMapGenerator* gen)
 
 void CRmgTemplateZone::paintZoneTerrain (CMapGenerator* gen, ETerrainType terrainType)
 {
-	std::vector<int3> tiles;
-	for (auto tile : tileinfo)
-	{
-		tiles.push_back (tile);
-	}
+	std::vector<int3> tiles(tileinfo.begin(), tileinfo.end());
 	gen->editManager->getTerrainSelection().setSelection(tiles);
 	gen->editManager->drawTerrain(terrainType, &gen->rand);
 }
@@ -1878,7 +1889,7 @@ void CRmgTemplateZone::drawRoads(CMapGenerator* gen)
 	}
 	for (auto tile : roadNodes)
 	{
-		if (vstd::contains(tileinfo, tile)) //mark roads for our nodes, but not for zone guards in other zones
+		if (gen->getZoneID(tile) == id) //mark roads for our nodes, but not for zone guards in other zones
 			tiles.push_back(tile);
 	}
 
@@ -2216,7 +2227,7 @@ ObjectInfo CRmgTemplateZone::getRandomObject(CMapGenerator* gen, CTreasurePileIn
 {
 	//int objectsVisitableFromBottom = 0; //for debug
 
-	std::vector<std::pair<ui32, ObjectInfo>> tresholds;
+	std::vector<std::pair<ui32, ObjectInfo*>> thresholds; //handle complex object via pointer
 	ui32 total = 0;
 
 	//calculate actual treasure value range based on remaining value
@@ -2297,7 +2308,6 @@ ObjectInfo CRmgTemplateZone::getRandomObject(CMapGenerator* gen, CTreasurePileIn
 
 			bool fitsBlockmap = true;
 
-
 			std::set<int3> blockedOffsets = oi.templ.getBlockedOffsets();
 			blockedOffsets.insert (newVisitableOffset);
 			for (auto blockingTile : blockedOffsets)
@@ -2318,14 +2328,12 @@ ObjectInfo CRmgTemplateZone::getRandomObject(CMapGenerator* gen, CTreasurePileIn
 				continue;
 
 			total += oi.probability;
-			//assert (oi.value > 0);
-			tresholds.push_back (std::make_pair (total, oi));
+			
+			thresholds.push_back (std::make_pair (total, &oi));
 		}
 	}
 
-	//logGlobal->infoStream() << boost::format ("Number of objects visitable  from bottom: %d") % objectsVisitableFromBottom;
-
-	if (tresholds.empty())
+	if (thresholds.empty())
 	{
 		ObjectInfo oi;
 		//Generate pandora Box with gold if the value is extremely high
@@ -2358,12 +2366,13 @@ ObjectInfo CRmgTemplateZone::getRandomObject(CMapGenerator* gen, CTreasurePileIn
 	{
 		int r = gen->rand.nextInt (1, total);
 
-		for (auto t : tresholds)
+		//binary search = fastest
+		auto it = std::lower_bound(thresholds.begin(), thresholds.end(), r,
+			[](const std::pair<ui32, ObjectInfo*> &rhs, const int lhs)->bool
 		{
-			if (r <= t.first)
-				return t.second;
-		}
-		assert (0); //we should never be here
+			return rhs.first < lhs;
+		});
+		return *(it->second);
 	}
 
 	return ObjectInfo(); // unreachable

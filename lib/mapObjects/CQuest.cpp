@@ -29,6 +29,13 @@
 
 std::map <PlayerColor, std::set <ui8> > CGKeys::playerKeyMap;
 
+CQuest::CQuest()
+	: qid(-1), missionType(MISSION_NONE), progress(NOT_ACTIVE), lastDay(-1), m13489val(0),
+	textOption(0), completedOption(0), stackDirection(0), heroPortrait(-1),
+	isCustomFirst(false), isCustomNext(false), isCustomComplete(false)
+{
+}
+
 ///helpers
 static void showInfoDialog(const PlayerColor playerID, const ui32 txtID, const ui16 soundID)
 {
@@ -502,7 +509,8 @@ void IQuestObject::getVisitText (MetaString &text, std::vector<Component> &compo
 	quest->getVisitText (text,components, isCustom, FirstVisit, h);
 }
 
-CGSeerHut::CGSeerHut() : IQuestObject()
+CGSeerHut::CGSeerHut() : IQuestObject(),
+	rewardType(NOTHING), rID(-1), rVal(-1)
 {
 	quest->lastDay = -1;
 	quest->isCustomFirst = false;
@@ -1006,6 +1014,11 @@ void CGQuestGuard::serializeJsonOptions(JsonSerializeFormat & handler)
 	quest->serializeJson(handler, "quest");
 }
 
+void CGKeys::reset()
+{
+	playerKeyMap.clear();
+}
+
 void CGKeys::setPropertyDer (ui8 what, ui32 val) //101-108 - enable key for player 1-8
 {
 	if (what >= 101 && what <= (100 + PlayerColor::PLAYER_LIMIT_I))
@@ -1019,7 +1032,7 @@ void CGKeys::setPropertyDer (ui8 what, ui32 val) //101-108 - enable key for play
 
 bool CGKeys::wasMyColorVisited (PlayerColor player) const
 {
-	if (vstd::contains(playerKeyMap[player], subID)) //creates set if it's not there
+	if(playerKeyMap.count(player) && vstd::contains(playerKeyMap[player], subID))
 		return true;
 	else
 		return false;

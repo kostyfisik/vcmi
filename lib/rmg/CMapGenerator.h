@@ -16,6 +16,7 @@
 #include "CMapGenOptions.h"
 #include "CRmgTemplateZone.h"
 #include "../int3.h"
+#include "CRmgTemplate.h" //for CRmgTemplateZoneConnection
 
 class CMap;
 class CRmgTemplate;
@@ -63,7 +64,8 @@ public:
 	CMapEditManager * editManager;
 
 	std::map<TRmgTemplateZoneId, CRmgTemplateZone*> getZones() const;
-	void createConnections();
+	void createDirectConnections();
+	void createConnections2();
 	void findZonesForQuestArts();
 	void foreach_neighbour(const int3 &pos, std::function<void(int3& pos)> foo);
 	void foreachDirectNeighbour(const int3 &pos, std::function<void(int3& pos)> foo);
@@ -94,12 +96,17 @@ public:
 	ui32 getZoneCount(TFaction faction);
 	ui32 getTotalZoneCount() const;
 
+	TRmgTemplateZoneId getZoneID(const int3& tile) const;
+	void setZoneID(const int3& tile, TRmgTemplateZoneId zid);
+
 private:
+	std::list<CRmgTemplateZoneConnection> connectionsLeft;
 	std::map<TRmgTemplateZoneId, CRmgTemplateZone*> zones;
 	std::map<TFaction, ui32> zonesPerFaction;
 	ui32 zonesTotal; //zones that have their main town only
 
 	CTileInfo*** tiles;
+	boost::multi_array<TRmgTemplateZoneId, 3> zoneColouring; //[z][x][y]
 
 	int prisonsRemaining;
 	//int questArtsRemaining;

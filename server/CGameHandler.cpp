@@ -1539,8 +1539,9 @@ void CGameHandler::newTurn()
 
 			NewTurn::Hero hth;
 			hth.id = h->id;
+			auto ti = make_unique<TurnInfo>(h, 1);
 			// TODO: this code executed when bonuses of previous day not yet updated (this happen in NewTurn::applyGs). See issue 2356
-			hth.move = h->maxMovePoints(gs->map->getTile(h->getPosition(false)).terType != ETerrainType::WATER, new TurnInfo(h, 1));
+			hth.move = h->maxMovePoints(gs->map->getTile(h->getPosition(false)).terType != ETerrainType::WATER, ti.get());
 			hth.mana = h->getManaNewTurn();
 
 			n.heroes.insert(hth);
@@ -1713,25 +1714,6 @@ void CGameHandler::newTurn()
 	{
 		if(elem)
 			elem->newTurn();
-	}
-
-	//count days without town for all players, regardless of their turn order
-	for (auto &p : gs->players)
-	{
-		PlayerState & playerState = p.second;
-		if (playerState.status == EPlayerStatus::INGAME)
-		{
-			if (playerState.towns.empty())
-			{
-				if (playerState.daysWithoutCastle)
-					++(*playerState.daysWithoutCastle);
-				else playerState.daysWithoutCastle = 0;
-			}
-			else
-			{
-				playerState.daysWithoutCastle = boost::none;
-			}
-		}
 	}
 
 	synchronizeArtifactHandlerLists(); //new day events may have changed them. TODO better of managing that
@@ -1992,10 +1974,10 @@ bool CGameHandler::moveHero( ObjectInstanceID hid, int3 dst, ui8 teleporting, bo
 	tmh.movePoints = h->movement;
 
 	//check if destination tile is available
-	auto ti = new TurnInfo(h);
+	auto ti = make_unique<TurnInfo>(h);
 	const bool canFly = ti->hasBonusOfType(Bonus::FLYING_MOVEMENT);
 	const bool canWalkOnSea = ti->hasBonusOfType(Bonus::WATER_WALKING);
-	const int cost = CPathfinderHelper::getMovementCost(h, h->getPosition(), hmpos, nullptr, nullptr, h->movement, ti);
+	const int cost = CPathfinderHelper::getMovementCost(h, h->getPosition(), hmpos, nullptr, nullptr, h->movement, ti.get());
 
 	//it's a rock or blocked and not visitable tile
 	//OR hero is on land and dest is water and (there is not present only one object - boat)
@@ -2087,14 +2069,14 @@ bool CGameHandler::moveHero( ObjectInstanceID hid, int3 dst, ui8 teleporting, bo
 
 	if(!transit && embarking)
 	{
-		tmh.movePoints = h->movementPointsAfterEmbark(h->movement, cost, false, ti);
+		tmh.movePoints = h->movementPointsAfterEmbark(h->movement, cost, false, ti.get());
 		return doMove(TryMoveHero::EMBARK, IGNORE_GUARDS, DONT_VISIT_DEST, LEAVING_TILE);
 		// In H3 embark ignore guards
 	}
 
 	if(disembarking)
 	{
-		tmh.movePoints = h->movementPointsAfterEmbark(h->movement, cost, true, ti);
+		tmh.movePoints = h->movementPointsAfterEmbark(h->movement, cost, true, ti.get());
 		return doMove(TryMoveHero::DISEMBARK, CHECK_FOR_GUARDS, VISIT_DEST, LEAVING_TILE);
 	}
 
@@ -2182,8 +2164,6 @@ void CGameHandler::setOwner(const CGObjectInstance * obj, PlayerColor owner)
 			const CGTownInstance * town = dynamic_cast<const CGTownInstance *>(obj);
 			if (town->hasBuilt(BuildingID::PORTAL_OF_SUMMON, ETownType::DUNGEON))
 				setPortalDwelling(town, true, false);
-
-			gs->getPlayer(owner)->daysWithoutCastle = boost::none; // reset counter
 		}
 
 		if (oldOwner < PlayerColor::PLAYER_LIMIT) //old owner is real player
@@ -3192,7 +3172,10 @@ bool CGameHandler::moveArtifact(const ArtifactLocation &al1, const ArtifactLocat
 		&& srcArtifact && !srcArtifact->canBePutAt(dst, true))
 		COMPLAIN_RET("Cannot move artifact!");
 
-	if ((srcArtifact && srcArtifact->artType->id == ArtifactID::ART_LOCK) || (destArtifact && destArtifact->artType->id == ArtifactID::ART_LOCK))
+	auto srcSlot = src.getSlot();
+	auto dstSlot = dst.getSlot();
+
+	if ((srcSlot && srcSlot->locked) || (dstSlot && dstSlot->locked))
 		COMPLAIN_RET("Cannot move artifact locks.");
 
 	if (dst.slot >= GameConstants::BACKPACK_START && srcArtifact->artType->isBig())

@@ -1848,6 +1848,11 @@ void CGGarrison::serializeJsonOptions(JsonSerializeFormat& handler)
 	CCreatureSet::serializeJson(handler, "army", 7);
 }
 
+void CGMagi::reset()
+{
+	eyelist.clear();
+}
+
 void CGMagi::initObj()
 {
 	if (ID == Obj::EYE_OF_MAGI)

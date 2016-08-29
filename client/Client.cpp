@@ -30,7 +30,6 @@
 #include "../lib/JsonNode.h"
 #include "mapHandler.h"
 #include "../lib/CConfigHandler.h"
-#include "Client.h"
 #include "CPreGame.h"
 #include "battle/CBattleInterface.h"
 #include "../lib/CThreadHelper.h"
@@ -240,6 +239,8 @@ void CClient::endGame( bool closeConnection /*= true*/ )
 	battleints.clear();
 	callbacks.clear();
 	battleCallbacks.clear();
+	CGKeys::reset();
+	CGMagi::reset();
 	CGObelisk::reset();
 	logNetwork->infoStream() << "Deleted playerInts.";
 	logNetwork->infoStream() << "Client stopped.";

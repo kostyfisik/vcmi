@@ -1935,6 +1935,12 @@ void CBattleInterface::bTacticNextStack(const CStack *current /*= nullptr*/)
 
 	TStacks stacksOfMine = tacticianInterface->cb->battleGetStacks(CBattleCallback::ONLY_MINE);
 	vstd::erase_if(stacksOfMine, &immobile);
+	if(stacksOfMine.empty())
+	{
+		bEndTacticPhase();
+		return;
+	}
+
 	auto it = vstd::find(stacksOfMine, current);
 	if(it != stacksOfMine.end() && ++it != stacksOfMine.end())
 		stackActivated(*it);
@@ -2760,7 +2766,7 @@ void CBattleInterface::gateStateChanged(const EGateState state)
 		break;
 	}
 
-	if(oldState != EGateState::CLOSED && oldState != EGateState::BLOCKED)
+	if(oldState != EGateState::NONE && oldState != EGateState::CLOSED && oldState != EGateState::BLOCKED)
 		SDL_FreeSurface(siegeH->walls[SiegeHelper::GATE]);
 
 	if(stateId != EWallState::NONE)
@@ -2839,7 +2845,7 @@ CBattleInterface::SiegeHelper::~SiegeHelper()
 	auto gateState = owner->curInt->cb->battleGetGateState();
 	for(int g = 0; g < ARRAY_COUNT(walls); ++g)
 	{
-		if(g != SiegeHelper::GATE || (gateState != EGateState::CLOSED && gateState != EGateState::BLOCKED))
+		if(g != SiegeHelper::GATE || (gateState != EGateState::NONE && gateState != EGateState::CLOSED && gateState != EGateState::BLOCKED))
 			SDL_FreeSurface(walls[g]);
 	}
 }

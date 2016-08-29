@@ -15,7 +15,6 @@
 #include "VCMI_Lib.h"
 #include "mapObjects/CObjectHandler.h"
 #include "CHeroHandler.h"
-#include "CCreatureHandler.h"
 #include "spells/CSpellHandler.h"
 #include "CTownHandler.h"
 #include "NetPacks.h"
@@ -23,6 +22,15 @@
 #include "filesystem/Filesystem.h"
 #include "CRandomGenerator.h"
 #include "mapObjects/CGTownInstance.h"
+
+SiegeInfo::SiegeInfo()
+{
+	for (int i = 0; i < wallState.size(); ++i)
+	{
+		wallState[i] = EWallState::NONE;
+	}
+	gateState = EGateState::NONE;
+}
 
 const CStack * BattleInfo::getNextStack() const
 {
@@ -280,7 +288,7 @@ struct RangeGenerator
 BattleInfo * BattleInfo::setupBattle( int3 tile, ETerrainType terrain, BFieldType battlefieldType, const CArmedInstance *armies[2], const CGHeroInstance * heroes[2], bool creatureBank, const CGTownInstance *town )
 {
 	CMP_stack cmpst;
-	auto curB = new BattleInfo;
+	auto curB = new BattleInfo();
 
 	for(auto i = 0u; i < curB->sides.size(); i++)
 		curB->sides[i].init(heroes[i], armies[i]);
@@ -722,6 +730,9 @@ CStack * BattleInfo::getStack(int stackID, bool onlyAlive /*= true*/)
 }
 
 BattleInfo::BattleInfo()
+	: round(-1), activeStack(-1), selectedStack(-1), town(nullptr), tile(-1,-1,-1),
+	battlefieldType(BFieldType::NONE), terrainType(ETerrainType::WRONG),
+	tacticsSide(0), tacticDistance(0)
 {
 	setBattle(this);
 	setNodeType(BATTLE);
@@ -739,7 +750,8 @@ CGHeroInstance * BattleInfo::battleGetFightingHero(ui8 side) const
 
 CStack::CStack(const CStackInstance *Base, PlayerColor O, int I, bool AO, SlotID S)
 	: base(Base), ID(I), owner(O), slot(S), attackerOwned(AO),
-	counterAttacksPerformed(0),counterAttacksTotalCache(0), cloneID(-1)
+	counterAttacksPerformed(0),counterAttacksTotalCache(0), cloneID(-1),
+	firstHPleft(-1), position(), shots(0), casts(0), resurrected(0)
 {
 	assert(base);
 	type = base->type;
@@ -752,8 +764,9 @@ CStack::CStack()
 	setNodeType(STACK_BATTLE);
 }
 CStack::CStack(const CStackBasicDescriptor *stack, PlayerColor O, int I, bool AO, SlotID S)
-	: base(nullptr), ID(I), owner(O), slot(S), attackerOwned(AO), counterAttacksPerformed(0),
-	 cloneID(-1)
+	: base(nullptr), ID(I), owner(O), slot(S), attackerOwned(AO),
+	counterAttacksPerformed(0), counterAttacksTotalCache(0), cloneID(-1),
+	firstHPleft(-1), position(), shots(0), casts(0), resurrected(0)
 {
 	type = stack->type;
 	count = baseAmount = stack->count;
@@ -774,6 +787,10 @@ void CStack::init()
 	counterAttacksPerformed = 0;
 	counterAttacksTotalCache = 0;
 	cloneID = -1;
+
+	shots = 0;
+	casts = 0;
+	resurrected = 0;
 }
 
 void CStack::postInit()
@@ -1267,6 +1284,7 @@ CMP_stack::CMP_stack( int Phase /*= 1*/, int Turn )
 
 SideInBattle::SideInBattle()
 {
+	color = PlayerColor::CANNOT_DETERMINE;
 	hero = nullptr;
 	armyObject = nullptr;
 	castSpellsCount = 0;

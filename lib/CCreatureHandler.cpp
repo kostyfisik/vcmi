@@ -177,6 +177,7 @@ static void AddAbility(CCreature *cre, const JsonVector &ability_vec)
 }
 
 CCreatureHandler::CCreatureHandler()
+	: expAfterUpgrade(0)
 {
 	VLC->creh = this;
 
@@ -1115,6 +1116,9 @@ CCreatureHandler::~CCreatureHandler()
 {
 	for(auto & creature : creatures)
 		creature.dellNull();
+
+	for(auto & p : skillRequirements)
+		vstd::clear_pointer(p.first);
 }
 
 CreatureID CCreatureHandler::pickRandomMonster(CRandomGenerator & rand, int tier) const

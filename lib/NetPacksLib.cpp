@@ -533,6 +533,8 @@ DLL_LINKAGE void NewStructures::applyGs( CGameState *gs )
 	{
 		assert(t->town->buildings.at(id) != nullptr);
 		t->builtBuildings.insert(id);
+
+		t->updateAppearance();
 	}
 	t->builded = builded;
 	t->recreateBuildingsBonuses();
@@ -543,6 +545,8 @@ DLL_LINKAGE void RazeStructures::applyGs( CGameState *gs )
 	for(const auto & id : bid)
 	{
 		t->builtBuildings.erase(id);
+
+		t->updateAppearance();
 	}
 	t->destroyed = destroyed; //yeaha
 	t->recreateBuildingsBonuses();
@@ -1093,6 +1097,25 @@ DLL_LINKAGE void NewTurn::applyGs( CGameState *gs )
 
 	if(gs->getDate(Date::DAY_OF_WEEK) == 1)
 		gs->updateRumor();
+
+	//count days without town for all players, regardless of their turn order
+	for (auto &p : gs->players)
+	{
+		PlayerState & playerState = p.second;
+		if (playerState.status == EPlayerStatus::INGAME)
+		{
+			if (playerState.towns.empty())
+			{
+				if (playerState.daysWithoutCastle)
+					++(*playerState.daysWithoutCastle);
+				else playerState.daysWithoutCastle = 0;
+			}
+			else
+			{
+				playerState.daysWithoutCastle = boost::none;
+			}
+		}
+	}
 }
 
 DLL_LINKAGE void SetObjectProperty::applyGs( CGameState *gs )
@@ -1113,7 +1136,14 @@ DLL_LINKAGE void SetObjectProperty::applyGs( CGameState *gs )
 			if(t->tempOwner < PlayerColor::PLAYER_LIMIT)
 				gs->getPlayer(t->tempOwner)->towns -= t;
 			if(val < PlayerColor::PLAYER_LIMIT_I)
-				gs->getPlayer(PlayerColor(val))->towns.push_back(t);
+			{
+				PlayerState * p = gs->getPlayer(PlayerColor(val));
+				p->towns.push_back(t);
+
+				//reset counter before NewTurn to avoid no town message if game loaded at turn when one already captured
+				if(p->daysWithoutCastle)
+					p->daysWithoutCastle = boost::none;
+			}
 		}
 
 		CBonusSystemNode *nodeToMove = cai->whatShouldBeAttached();

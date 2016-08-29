@@ -50,7 +50,7 @@ public:
 	std::string firstVisitText, nextVisitText, completedText;
 	bool isCustomFirst, isCustomNext, isCustomComplete;
 
-	CQuest(){missionType = MISSION_NONE;}; //default constructor
+	CQuest();
 	virtual ~CQuest(){};
 
 	virtual void addReplacements(MetaString &out, const std::string &base) const;
@@ -159,6 +159,8 @@ class DLL_LINKAGE CGKeys : public CGObjectInstance //Base class for Keymaster an
 public:
 	static std::map <PlayerColor, std::set <ui8> > playerKeyMap; //[players][keysowned]
 	//SubID 0 - lightblue, 1 - green, 2 - red, 3 - darkblue, 4 - brown, 5 - purple, 6 - white, 7 - black
+
+	static void reset();
 
 	bool wasMyColorVisited (PlayerColor player) const;
 

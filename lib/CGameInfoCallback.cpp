@@ -78,14 +78,14 @@ const PlayerState * CGameInfoCallback::getPlayer(PlayerColor color, bool verbose
 		else
 		{
 			if (verbose)
-				logGlobal->errorStream() << boost::format("Cannot access player %d info!") % color;
+				logGlobal->error("Cannot access player %d info!", color);
 			return nullptr;
 		}
 	}
 	else
 	{
 		if (verbose)
-			logGlobal->errorStream() << boost::format("Cannot find player %d info!") % color;
+			logGlobal->error("Cannot find player %d info!", color);
 		return nullptr;
 	}
 }
@@ -743,8 +743,12 @@ int3 CPlayerSpecificInfoCallback::getGrailPos( double *outKnownRatio )
 	}
 	else
 	{
-		*outKnownRatio = static_cast<double>(CGObelisk::visited[gs->getPlayerTeam(*player)->id])
-			/ CGObelisk::obeliskCount;
+		TeamID t = gs->getPlayerTeam(*player)->id;
+		double visited = 0.0;
+		if(CGObelisk::visited.count(t))
+			visited = static_cast<double>(CGObelisk::visited[t]);
+
+		*outKnownRatio = visited / CGObelisk::obeliskCount;
 	}
 	return gs->map->grailPos;
 }
@@ -843,14 +847,14 @@ const TeamState * CGameInfoCallback::getTeam( TeamID teamID ) const
 				return ret;
 			else
 			{
-				logGlobal->errorStream() << boost::format("Illegal attempt to access team data!");
+				logGlobal->error("Illegal attempt to access team data!");
 				return nullptr;
 			}
 		}
 	}
 	else
 	{
-		logGlobal->errorStream() << boost::format("Cannot find info for team %d") % teamID;
+		logGlobal->error("Cannot find info for team %d", teamID);
 		return nullptr;
 	}
 }

@@ -188,8 +188,12 @@ bool CGHeroInstance::canLearnSkill() const
 
 int CGHeroInstance::maxMovePoints(bool onLand, const TurnInfo * ti) const
 {
+	bool localTi = false;
 	if(!ti)
+	{
+		localTi = true;
 		ti = new TurnInfo(this);
+	}
 
 	int base;
 
@@ -213,6 +217,9 @@ int CGHeroInstance::maxMovePoints(bool onLand, const TurnInfo * ti) const
 
 	const int subtype = onLand ? SecondarySkill::LOGISTICS : SecondarySkill::NAVIGATION;
 	const double modifier = ti->valOfBonuses(Bonus::SECONDARY_SKILL_PREMY, subtype) / 100.0;
+
+	if(localTi)
+		delete ti;
 
 	return int(base* (1+modifier)) + bonus;
 }
@@ -459,6 +466,13 @@ ui8 CGHeroInstance::maxlevelsToMagicSchool() const
 ui8 CGHeroInstance::maxlevelsToWisdom() const
 {
 	return type->heroClass->isMagicHero() ? 3 : 6;
+}
+
+CGHeroInstance::SecondarySkillsInfo::SecondarySkillsInfo()
+{
+	rand.setSeed(0);
+	magicSchoolCounter = 1;
+	wisdomCounter = 1;
 }
 
 void CGHeroInstance::SecondarySkillsInfo::resetMagicSchoolCounter()
@@ -1200,13 +1214,20 @@ CBonusSystemNode * CGHeroInstance::whereShouldBeAttached(CGameState *gs)
 
 int CGHeroInstance::movementPointsAfterEmbark(int MPsBefore, int basicCost, bool disembark /*= false*/, const TurnInfo * ti) const
 {
+	bool localTi = false;
 	if(!ti)
+	{
+		localTi = true;
 		ti = new TurnInfo(this);
+	}
 
 	int mp1 = ti->getMaxMovePoints(disembark ? EPathfindingLayer::LAND : EPathfindingLayer::SAIL);
 	int mp2 = ti->getMaxMovePoints(disembark ? EPathfindingLayer::SAIL : EPathfindingLayer::LAND);
 	if(ti->hasBonusOfType(Bonus::FREE_SHIP_BOARDING))
 		return (MPsBefore - basicCost) * static_cast<double>(mp1) / mp2;
+
+	if(localTi)
+		delete ti;
 
 	return 0; //take all MPs otherwise
 }
