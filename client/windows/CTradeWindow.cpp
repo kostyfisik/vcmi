@@ -390,7 +390,7 @@ void CTradeWindow::initItems(bool Left)
 
 		BLOCK_CAPTURING;
 		arts = new CArtifactsOfHero(Point(pos.x+xOffset, pos.y+yOffset));
-		arts->commonInfo = new CArtifactsOfHero::SCommonPart;
+		arts->commonInfo = std::make_shared<CArtifactsOfHero::SCommonPart>();
 		arts->commonInfo->participants.insert(arts);
 		arts->recActions = 255;
 		arts->setHero(hero);
@@ -427,7 +427,7 @@ void CTradeWindow::initItems(bool Left)
 		hlp->pos = pos[j] + this->pos.topLeft();
 		items[Left].push_back(hlp);
 	}
-
+	vstd::clear_pointer(ids);
 	initSubs(Left);
 }
 

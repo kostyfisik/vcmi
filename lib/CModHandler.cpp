@@ -30,6 +30,10 @@ CIdentifierStorage::CIdentifierStorage():
 {
 }
 
+CIdentifierStorage::~CIdentifierStorage()
+{
+}
+
 void CIdentifierStorage::checkIdentifier(std::string & ID)
 {
 	if (boost::algorithm::ends_with(ID, "."))
@@ -586,6 +590,10 @@ CModHandler::CModHandler()
 		identifiers.registerObject("core", "primSkill", PrimarySkill::names[i], i);
 		identifiers.registerObject("core", "primarySkill", PrimarySkill::names[i], i);
 	}
+}
+
+CModHandler::~CModHandler()
+{
 }
 
 void CModHandler::loadConfigFromFile (std::string name)

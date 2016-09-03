@@ -1146,7 +1146,7 @@ void SelectionTab::parseGames(const std::unordered_set<ResourceID> &files, bool 
 			// Create the map info object
 			CMapInfo mapInfo;
 			mapInfo.mapHeader = make_unique<CMapHeader>();
-			mapInfo.scenarioOpts = new StartInfo;
+			mapInfo.scenarioOpts = nullptr;//to be created by serialiser
 			lf >> *(mapInfo.mapHeader.get()) >> mapInfo.scenarioOpts;
 			mapInfo.fileURI = file.getName();
 			mapInfo.countPlayers();
@@ -1284,7 +1284,7 @@ SelectionTab::SelectionTab(CMenuScreen::EState Type, const std::function<void(CM
 	slider = new CSlider(Point(372, 86), tabType != CMenuScreen::saveGame ? 480 : 430, std::bind(&SelectionTab::sliderMove, this, _1), positions, curItems.size(), 0, false, CSlider::BLUE);
 	slider->addUsedEvents(WHEEL);
 
-	formatIcons = new CAnimation("SCSELC.DEF");
+	formatIcons = make_unique<CAnimation>("SCSELC.DEF");
 	formatIcons->load();
 
 	sortingBy = _format;
@@ -1314,7 +1314,7 @@ SelectionTab::SelectionTab(CMenuScreen::EState Type, const std::function<void(CM
 
 SelectionTab::~SelectionTab()
 {
-	delete formatIcons;
+
 }
 
 void SelectionTab::sortBy( int criteria )
