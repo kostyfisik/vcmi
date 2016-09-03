@@ -125,7 +125,7 @@ void CGPandoraBox::giveContentsAfterExp(const CGHeroInstance *h) const
 	//TODO: reuse this code for Scholar skill
 	if(spells.size())
 	{
-		std::set<SpellID> spellsToGive;	
+		std::set<SpellID> spellsToGive;
 
 		std::vector<ConstTransitivePtr<CSpell> > * sp = &VLC->spellh->objects;
 		auto i = spells.cbegin();
@@ -476,11 +476,11 @@ void CGEvent::serializeJsonOptions(JsonSerializeFormat & handler)
 {
 	CGPandoraBox::serializeJsonOptions(handler);
 
-    handler.serializeBool<bool>("aIActivable", computerActivate, true, false, false);
-    handler.serializeBool<bool>("humanActivable", humanActivate, true, false, true);
+	handler.serializeBool<bool>("aIActivable", computerActivate, true, false, false);
+	handler.serializeBool<bool>("humanActivable", humanActivate, true, false, true);
 	handler.serializeBool<bool>("removeAfterVisit", removeAfterVisit, true, false, false);
 
-    {
+	{
 		auto decodePlayer = [](const std::string & id)->si32
 		{
 			return vstd::find_pos(GameConstants::PLAYER_COLOR_NAMES, id);

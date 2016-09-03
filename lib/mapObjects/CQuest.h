@@ -53,12 +53,12 @@ public:
 	CQuest();
 	virtual ~CQuest(){};
 
-	virtual void addReplacements(MetaString &out, const std::string &base) const;
 	virtual bool checkQuest (const CGHeroInstance * h) const; //determines whether the quest is complete or not
 	virtual void getVisitText (MetaString &text, std::vector<Component> &components, bool isCustom, bool FirstVisit, const CGHeroInstance * h = nullptr) const;
 	virtual void getCompletionText (MetaString &text, std::vector<Component> &components, bool isCustom, const CGHeroInstance * h = nullptr) const;
 	virtual void getRolloverText (MetaString &text, bool onHover) const; //hover or quest log entry
 	virtual void completeQuest (const CGHeroInstance * h) const {};
+	virtual void addReplacements(MetaString &out, const std::string &base) const;
 
 	bool operator== (const CQuest & quest) const
 	{

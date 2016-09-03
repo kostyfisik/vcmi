@@ -889,9 +889,8 @@ void CMapLoaderJson::MapObjectLoader::configure()
 
 	if(auto hero = dynamic_cast<CGHeroInstance *>(instance))
 	{
-        auto o = handler.enterStruct("options");
-
-        hero->serializeJsonArtifacts(handler, "artifacts", owner->map);
+		auto o = handler.enterStruct("options");
+		hero->serializeJsonArtifacts(handler, "artifacts", owner->map);
 	}
 }
 
