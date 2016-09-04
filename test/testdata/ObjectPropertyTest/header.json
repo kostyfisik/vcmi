@@ -266,7 +266,7 @@
 		]
 	},
 	"defeatIconIndex" : 3,
-	"defeatString" : "Потерять всех героев и все города",
+	"defeatString" : "Test defeatString",
 	"difficulty" : "NORMAL",
 	"mapLevels" : {
 		"surface" : {
@@ -342,10 +342,10 @@
 				{}
 			],
 			"effect" : {
-				"messageToSend" : "%s has been vanquished!",
+				"messageToSend" : "%s standardVictory effect test message",
 				"type" : "victory"
 			},
-			"message" : "Congratulations! All your enemies have been defeated! Victory is yours!"
+			"message" : "Test standardVictory message"
 		},
 		"standardDefeat" : {
 			"condition" : [
@@ -355,14 +355,14 @@
 				}
 			],
 			"effect" : {
-				"messageToSend" : "%s's heroes have abandoned him, and he is banished from this land.",
+				"messageToSend" : "%s standardDefeat effect test message",
 				"type" : "defeat"
 			},
-			"message" : "%s, your heroes abandon you, and you are banished from this land."
+			"message" : "%s, standardDefeat"
 		}
 	},
 	"victoryIconIndex" : 11,
-	"victoryString" : "Победить всех врагов",
+	"victoryString" : "Test victoryString",
 	"versionMajor" : 1,
 	"versionMinor" : 0
 }
