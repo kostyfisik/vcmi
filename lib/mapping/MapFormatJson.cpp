@@ -315,25 +315,67 @@ void CMapFormatJson::serializePlayerInfo(JsonSerializeFormat & handler)
 			info.hasMainTown = info.posOfMainTown.valid();
 		}
 
-		//mainHero
+		//todo:mainHero
 
-		//mainHeroPortrait
+		//todo:mainHeroPortrait
 
-		//mainCustomHeroName
+		//todo:mainCustomHeroName
 
 		//heroes
 		if(handler.saving)
 		{
-			if(!info.heroesNames.empty())
+			//ignoring heroesNames and saving from actual map objects
+			//TODO: optimize
+			for(auto & obj : map->objects)
 			{
-				auto heroes = playerData.enterStruct("heroes");
+				if((obj->ID == Obj::HERO || obj->ID == Obj::RANDOM_HERO) && obj->tempOwner == PlayerColor(player))
+				{
+					CGHeroInstance * hero = dynamic_cast<CGHeroInstance *>(obj.get());
+
+					auto heroes = playerData.enterStruct("heroes");
+					if(hero)
+					{
+						auto heroData = heroes.enterStruct(hero->instanceName);
+						heroData->serializeString("name", hero->name);
+
+						if(hero->ID == Obj::HERO)
+						{
+							if(hero->type)
+							{
+								handler.serializeString("type", hero->type->identifier);
+							}
+							else
+							{
+								auto temp = VLC->heroh->heroes[hero->subID]->identifier;
+								handler.serializeString("type", temp);
+							}
+						}
+					}
+				}
 			}
 		}
 		else
 		{
+			info.heroesNames.clear();
+
 			auto heroes = playerData.enterStruct("heroes");
 
+			for(const auto & hero : handler.getCurrent().Struct())
+			{
+                const JsonNode & data = hero.second;
 
+                SHeroName hname;
+				hname.heroId = -1;
+				std::string rawId = data["type"].String();
+
+				if(rawId != "")
+				{
+					hname.heroId = VLC->heroh->decodeHero(rawId);
+				}
+
+                hname.heroName = data["name"].String();
+                info.heroesNames.push_back(hname);
+			}
 		}
 
 		if(!handler.saving)
