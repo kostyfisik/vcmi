@@ -1322,20 +1322,44 @@ void CGTownInstance::serializeJsonOptions(JsonSerializeFormat & handler)
 		const std::set<si32> standard = getTown()->getAllBuildings();//by default all buildings are allowed
 		JsonSerializeFormat::LICSet buildingsLIC(standard, decodeBuilding, encodeBuilding);
 
-		for(const BuildingID id : forbiddenBuildings)
-			buildingsLIC.none.insert(id);
-
-		for(const BuildingID id : builtBuildings)
+		if(handler.saving)
 		{
-			if(id != BuildingID::DEFAULT)
+			bool customBuildings = false;
+
+			boost::logic::tribool hasFort(false);
+
+			for(const BuildingID id : forbiddenBuildings)
+			{
+				buildingsLIC.none.insert(id);
+				customBuildings = true;
+			}
+
+			for(const BuildingID id : builtBuildings)
+			{
+				if(id == BuildingID::DEFAULT)
+					continue;
+
+				const CBuilding * building = getTown()->buildings.at(id);
+
+				if(building->mode == CBuilding::BUILD_AUTO)
+					continue;
+
+				if(id == BuildingID::FORT)
+					hasFort = true;
+
 				buildingsLIC.all.insert(id);
+				customBuildings = true;
+			}
+
+			if(customBuildings)
+				handler.serializeLIC("buildings", buildingsLIC);
+			else
+				handler.serializeBool("hasFort",hasFort);
 		}
-
-		handler.serializeLIC("buildings", buildingsLIC);
-
-		if(!handler.saving)
+		else
 		{
-			//todo: process AUTO buildings
+			handler.serializeLIC("buildings", buildingsLIC);
+
 			builtBuildings.insert(BuildingID::VILLAGE_HALL);
 
 			if(buildingsLIC.none.empty() && buildingsLIC.all.empty())
