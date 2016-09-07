@@ -488,11 +488,69 @@ void CMapFormatJson::writeTriggeredEvent(const TriggeredEvent & event, JsonNode 
 	dest["condition"] = event.trigger.toJson(ConditionToJson);
 }
 
+void CMapFormatJson::readDisposedHeroes(JsonSerializeFormat & handler)
+{
+	auto definitions = handler.enterStruct("predefinedHeroes");//DisposedHeroes are part of predefinedHeroes in VCMI map format
+
+	JsonNode & data = handler.getCurrent();
+
+	for(const auto & entry : data.Struct())
+	{
+		HeroTypeID type(VLC->heroh->decodeHero(entry.first));
+
+		ui8 mask = 0;
+
+		for(const JsonNode & playerData : entry.second["availableFor"].Vector())
+		{
+			PlayerColor player = PlayerColor(vstd::find_pos(GameConstants::PLAYER_COLOR_NAMES, playerData.String()));
+			if(player.isValidPlayer())
+			{
+				mask |= 1 << player.getNum();
+			}
+		}
+
+		if(mask != 0 && mask != GameConstants::ALL_PLAYERS && type.getNum() >= 0)
+		{
+			DisposedHero hero;
+
+			hero.heroId = type.getNum();
+			hero.players = mask;
+			//name and portrait are not used
+
+			map->disposedHeroes.push_back(hero);
+		}
+	}
+}
+
+
+void CMapFormatJson::writeDisposedHeroes(JsonSerializeFormat & handler)
+{
+	if(map->disposedHeroes.empty())
+		return;
+
+	auto definitions = handler.enterStruct("predefinedHeroes");//DisposedHeroes are part of predefinedHeroes in VCMI map format
+
+	JsonNode & data = handler.getCurrent();
+
+	for(const DisposedHero & hero : map->disposedHeroes)
+	{
+		std::string type = VLC->heroh->encodeHero(hero.heroId);
+
+		JsonVector & players = data[type]["availableFor"].Vector();
+
+		for(int playerNum = 0; playerNum < PlayerColor::PLAYER_LIMIT_I; playerNum++)
+            if((1 << playerNum) & hero.players)
+			{
+				JsonNode player(JsonNode::DATA_STRING);
+				player.String() = GameConstants::PLAYER_COLOR_NAMES[playerNum];
+				players.push_back(player);
+			}
+	}
+}
+
 void CMapFormatJson::serializeOptions(JsonSerializeFormat & handler)
 {
 	//todo:rumors
-
-	//todo:disposedHeroes
 
 	//todo:predefinedHeroes
 
@@ -507,11 +565,13 @@ void CMapFormatJson::serializeOptions(JsonSerializeFormat & handler)
 
 void CMapFormatJson::readOptions(JsonDeserializer & handler)
 {
+	readDisposedHeroes(handler);
 	serializeOptions(handler);
 }
 
 void CMapFormatJson::writeOptions(JsonSerializer & handler)
 {
+	writeDisposedHeroes(handler);
 	serializeOptions(handler);
 }
 

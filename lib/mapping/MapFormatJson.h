@@ -96,6 +96,10 @@ protected:
 	 */
 	void writeTriggeredEvent(const TriggeredEvent & event, JsonNode & dest);
 
+	void writeDisposedHeroes(JsonSerializeFormat & handler);
+
+	void readDisposedHeroes(JsonSerializeFormat & handler);
+
 	///common part of map attributes saving/loading
 	void serializeOptions(JsonSerializeFormat & handler);
 
