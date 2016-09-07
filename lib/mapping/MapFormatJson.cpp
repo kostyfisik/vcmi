@@ -479,11 +479,16 @@ void CMapFormatJson::writeTriggeredEvent(const TriggeredEvent & event, JsonNode 
 {
 	using namespace TriggeredEventsDetail;
 
-	dest["message"].String() = event.onFulfill;
-	dest["description"].String() = event.description;
+	if(!event.onFulfill.empty())
+		dest["message"].String() = event.onFulfill;
+
+	if(!event.description.empty())
+		dest["description"].String() = event.description;
 
 	dest["effect"]["type"].String() = typeNames.at(size_t(event.effect.type));
-	dest["effect"]["messageToSend"].String() = event.effect.toOtherMessage;
+
+	if(!event.effect.toOtherMessage.empty())
+		dest["effect"]["messageToSend"].String() = event.effect.toOtherMessage;
 
 	dest["condition"] = event.trigger.toJson(ConditionToJson);
 }

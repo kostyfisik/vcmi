@@ -7,7 +7,6 @@
 			"artillery",
 			"ballistics",
 			"diplomacy",
-			"eagleEye",
 			"earthMagic",
 			"estates",
 			"fireMagic",
@@ -338,8 +337,8 @@
 	"triggeredEvents" : {
 		"standardVictory" : {
 			"condition" : [
-				"standardWin",
-				{}
+				"standardWin"
+
 			],
 			"effect" : {
 				"messageToSend" : "%s standardVictory effect test message",
