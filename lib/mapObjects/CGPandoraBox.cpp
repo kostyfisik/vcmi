@@ -353,7 +353,7 @@ void CGPandoraBox::afterSuccessfulVisit() const
 
 void CGPandoraBox::serializeJsonOptions(JsonSerializeFormat & handler)
 {
-	CCreatureSet::serializeJson(handler, "guards");
+	CCreatureSet::serializeJson(handler, "guards", 7);
 	handler.serializeString("guardMessage", message);
 
 	handler.serializeNumeric("experience", gainedExp, 0);

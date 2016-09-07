@@ -1527,7 +1527,7 @@ void CGHeroInstance::serializeJsonOptions(JsonSerializeFormat & handler)
 				subID = 0; //fallback to Orrin, throw error instead?
 		}
 	}
-	CCreatureSet::serializeJson(handler, "army");
+	CCreatureSet::serializeJson(handler, "army", 7);
 	handler.serializeBool<ui8>("tightFormation", formation, 1, 0, 0);
 
 	if(handler.saving)

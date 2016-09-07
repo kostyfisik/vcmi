@@ -774,7 +774,7 @@ void CGMine::blockingDialogAnswered(const CGHeroInstance *hero, ui32 answer) con
 
 void CGMine::serializeJsonOptions(JsonSerializeFormat & handler)
 {
-	CCreatureSet::serializeJson(handler, "army");
+	CCreatureSet::serializeJson(handler, "army", 7);
 
 	if(isAbandoned())
 	{

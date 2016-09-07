@@ -1299,7 +1299,7 @@ void CGTownInstance::battleFinished(const CGHeroInstance *hero, const BattleResu
 void CGTownInstance::serializeJsonOptions(JsonSerializeFormat & handler)
 {
 	CGObjectInstance::serializeJsonOwner(handler);
-	CCreatureSet::serializeJson(handler, "army");
+	CCreatureSet::serializeJson(handler, "army", 7);
 	handler.serializeBool<ui8>("tightFormation", formation, 1, 0, 0);
 	handler.serializeString("name", name);
 
