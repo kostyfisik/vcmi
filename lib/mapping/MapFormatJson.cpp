@@ -569,7 +569,6 @@ void CMapFormatJson::readDisposedHeroes(JsonSerializeFormat & handler)
 	}
 }
 
-
 void CMapFormatJson::writeDisposedHeroes(JsonSerializeFormat & handler)
 {
 	if(map->disposedHeroes.empty())
@@ -729,7 +728,7 @@ void CMapLoaderJson::readHeader(const bool complete)
 
 	if(fileVersionMinor > VERSION_MINOR)
 	{
-		logGlobal->traceStream() << "Too new map format revision: " << fileVersionMinor << ". This map should work but some of map features may be ignored.";
+		logGlobal->warnStream() << "Too new map format revision: " << fileVersionMinor << ". This map should work but some of map features may be ignored.";
 	}
 
 	JsonDeserializer handler(mapObjectResolver.get(), header);
@@ -755,9 +754,8 @@ void CMapLoaderJson::readHeader(const bool complete)
 
 	readTriggeredEvents(handler);
 
-
 	readTeams(handler);
-	//TODO: readHeader
+	//TODO: check mods
 
 	if(complete)
 		readOptions(handler);

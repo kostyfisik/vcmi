@@ -315,6 +315,38 @@ public:
 		}
 	}
 
+	///bitmask <-> Json array of string
+	template <typename T, int Size>
+	void serializeIdArray(const std::string & fieldName, T & value, const T & defaultValue, const TDecoder & decoder, const TEncoder & encoder)
+	{
+		static_assert(8 * sizeof(T) >= Size, "Mask size too small");
+
+		std::vector<si32> temp;
+		temp.reserve(Size);
+
+		if(saving && value != defaultValue)
+		{
+			for(si32 i = 0; i < Size; i++)
+				if(value & (1 << i))
+					temp.push_back(i);
+			serializeInternal(fieldName, temp, decoder, encoder);
+		}
+
+		if(!saving)
+		{
+			serializeInternal(fieldName, temp, decoder, encoder);
+
+			if(temp.empty())
+				value = defaultValue;
+			else
+			{
+				value = 0;
+				for(auto i : temp)
+					value |= (1 << i);
+			}
+		}
+	}
+
 	///si32-convertible instance identifier <-> Json string
 	template <typename T>
 	void serializeInstance(const std::string & fieldName, T & value, const T & defaultValue)

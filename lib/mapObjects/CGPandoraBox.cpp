@@ -491,30 +491,6 @@ void CGEvent::serializeJsonOptions(JsonSerializeFormat & handler)
 			return GameConstants::PLAYER_COLOR_NAMES[idx];
 		};
 
-		std::vector<ui8> temp;
-
-		if(handler.saving)
-		{
-			if(availableFor != GameConstants::ALL_PLAYERS)
-			{
-	            for(int p = 0; p < PlayerColor::PLAYER_LIMIT_I; p++)
-				if(availableFor & (1 << p))
-					temp.push_back(p);
-				handler.serializeIdArray("availableFor", temp, decodePlayer, encodePlayer);
-			}
-		}
-		else
-		{
-			handler.serializeIdArray("availableFor", temp, decodePlayer, encodePlayer);
-			if(temp.empty())
-				availableFor = GameConstants::ALL_PLAYERS;
-			else
-			{
-				availableFor = 0;
-
-				for(auto p : temp)
-					availableFor |= (1 << p);
-			}
-		}
+		handler.serializeIdArray<ui8, PlayerColor::PLAYER_LIMIT_I>("availableFor", availableFor, GameConstants::ALL_PLAYERS, decodePlayer, encodePlayer);
     }
 }
