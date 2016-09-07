@@ -54,10 +54,15 @@ struct JsonMapComparer
 	void addError(const std::string & message);
 	void addWarning(const std::string & message);
 
+	bool isEmpty(const JsonNode & value);
+
 	void check(const bool condition, const std::string & message);
 
 	void checkExcessStructField(const JsonNode & actualValue, const std::string & name, const JsonMap & expected);
 	void checkStructField(const JsonMap & actual, const std::string & name, const JsonNode & expectedValue);
+
+	void checkEqualFloat(const double & actual, const double& expected);
+	void checkEqualString(const std::string & actual, const std::string & expected);
 
 	void checkEqualJson(const JsonNode & actual, const JsonNode & expected);
 	void checkEqualJson(const JsonMap & actual, const JsonMap & expected);

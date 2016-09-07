@@ -309,12 +309,51 @@ void JsonMapComparer::addWarning(const std::string & message)
 	BOOST_WARN_MESSAGE(false, buildMessage(message));
 }
 
+bool JsonMapComparer::isEmpty(const JsonNode & value)
+{
+	switch (value.getType())
+	{
+	case JsonNode::DATA_NULL:
+		return true;
+	case JsonNode::DATA_BOOL:
+		return !value.Bool();
+	case JsonNode::DATA_FLOAT:
+		return value.Float() == 0;
+	case JsonNode::DATA_STRING:
+		return value.String() == "";
+	case JsonNode::DATA_VECTOR:
+		return value.Vector().empty();
+	case JsonNode::DATA_STRUCT:
+		return value.Struct().empty();
+		break;
+	default:
+		BOOST_FAIL("Unknown Json type");
+		return false;
+	}
+}
+
 void JsonMapComparer::check(const bool condition, const std::string & message)
 {
 	if(strict)
 		BOOST_REQUIRE_MESSAGE(condition, buildMessage(message));
 	else
 		BOOST_CHECK_MESSAGE(condition, buildMessage(message));
+}
+
+void JsonMapComparer::checkEqualFloat(const double & actual, const double & expected)
+{
+	if(std::abs(actual - expected) > 1e-6)
+	{
+		check(false, boost::str(boost::format("'%d' != '%d'") % actual % expected));
+	}
+}
+
+void JsonMapComparer::checkEqualString(const std::string & actual, const std::string & expected)
+{
+	if(actual != expected)
+	{
+		check(false, boost::str(boost::format("'%s' != '%s'") % actual % expected));
+	}
 }
 
 void JsonMapComparer::checkEqualJson(const JsonMap & actual, const JsonMap & expected)
@@ -344,13 +383,12 @@ void JsonMapComparer::checkEqualJson(const JsonNode & actual, const JsonNode & e
 	//name has been pushed before
 
 	const bool validType = actual.getType() == expected.getType();
-	const bool actualNull = actual.getType() == JsonNode::DATA_NULL;
 
 	if(!validType)
 		addError("type mismatch");
 
 	//do detail checks avoiding assertions in JsonNode
-	if(validType || actualNull)
+	if(validType)
 	{
 		switch (actual.getType())
 		{
@@ -360,10 +398,10 @@ void JsonMapComparer::checkEqualJson(const JsonNode & actual, const JsonNode & e
 			check(actual.Bool() == expected.Bool(), "mismatch");
 			break;
 		case JsonNode::DATA_FLOAT:
-			check(actual.Float() == expected.Float(), "mismatch");
+			checkEqualFloat(actual.Float(),expected.Float());
 			break;
 		case JsonNode::DATA_STRING:
-			check(actual.String() == expected.String(), "mismatch");
+			checkEqualString(actual.String(),expected.String());
 			break;
 		case JsonNode::DATA_VECTOR:
 			checkEqualJson(actual.Vector(), expected.Vector());
@@ -384,7 +422,7 @@ void JsonMapComparer::checkExcessStructField(const JsonNode & actualValue, const
 
 	if(!vstd::contains(expected, name))
 	{
-		if(actualValue.getType() == JsonNode::DATA_NULL)
+		if(isEmpty(actualValue))
 			addWarning("excess");
 		else
 			addError("excess");
@@ -397,8 +435,10 @@ void JsonMapComparer::checkStructField(const JsonMap & actual, const std::string
 
 	if(!vstd::contains(actual, name))
 	{
-		addError("missing");
-		checkEqualJson(JsonNode(), expectedValue);
+		if(isEmpty(expectedValue))
+			addWarning("missing");
+		else
+			addError("missing");
 	}
 	else
 		checkEqualJson(actual.at(name), expectedValue);
@@ -421,6 +461,6 @@ void JsonMapComparer::compareObjects(const JsonNode & actual, const JsonNode & e
 void JsonMapComparer::compareTerrain(const std::string & levelName, const JsonNode & actual, const JsonNode & expected)
 {
 	strict = true;
-	auto guard = pushName("levelName");
+	auto guard = pushName(levelName);
 	checkEqualJson(actual, expected);
 }
