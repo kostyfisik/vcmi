@@ -26,10 +26,10 @@
 
 static const int TEST_RANDOM_SEED = 1337;
 
-BOOST_AUTO_TEST_CASE(CMapFormatVCMI_RandomMap)
+BOOST_AUTO_TEST_CASE(MapFormat_Random)
 {
-	logGlobal->info("CMapFormatVCMI_RandomMap start");
-	BOOST_TEST_CHECKPOINT("CMapFormatVCMI_RandomMap start");
+	logGlobal->info("MapFormat_Random start");
+	BOOST_TEST_CHECKPOINT("MapFormat_Random start");
 	std::unique_ptr<CMap> initialMap;
 
 	CMapGenOptions opt;
@@ -48,14 +48,14 @@ BOOST_AUTO_TEST_CASE(CMapFormatVCMI_RandomMap)
 
 	initialMap = gen.generate(&opt, TEST_RANDOM_SEED);
 	initialMap->name = "Test";
-	BOOST_TEST_CHECKPOINT("CMapFormatVCMI_RandomMap generated");
+	BOOST_TEST_CHECKPOINT("MapFormat_Random generated");
 
 	CMemoryBuffer serializeBuffer;
 	{
 		CMapSaverJson saver(&serializeBuffer);
 		saver.saveMap(initialMap);
 	}
-	BOOST_TEST_CHECKPOINT("CMapFormatVCMI_RandomMap serialized");
+	BOOST_TEST_CHECKPOINT("MapFormat_Random serialized");
 	#if 1
 	{
 		auto path = VCMIDirs::get().userDataPath()/"test_random.vmap";
@@ -69,7 +69,7 @@ BOOST_AUTO_TEST_CASE(CMapFormatVCMI_RandomMap)
 		logGlobal->info("Test map has been saved to:");
 		logGlobal->info(path.string());
 	}
-	BOOST_TEST_CHECKPOINT("CMapFormatVCMI_RandomMap saved");
+	BOOST_TEST_CHECKPOINT("MapFormat_Random saved");
 
 	#endif // 1
 
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(CMapFormatVCMI_RandomMap)
 		c(serialized, initialMap);
 	}
 
-	logGlobal->info("CMapFormatVCMI_RandomMap finish");
+	logGlobal->info("MapFormat_Random finish");
 }
 
 static JsonNode getFromArchive(CZipLoader & archive, const std::string & archiveFilename)
@@ -115,9 +115,9 @@ static void addToArchive(CZipSaver & saver, const JsonNode & data, const std::st
 	}
 }
 
-BOOST_AUTO_TEST_CASE(CMapFormatVCMI_ObjectPropertyTestMap)
+BOOST_AUTO_TEST_CASE(MapFormat_Objects)
 {
-	logGlobal->info("CMapFormatVCMI_ObjectPropertyTestMap start");
+	logGlobal->info("MapFormat_Objects start");
 
 	static const std::string MAP_DATA_PATH = "test/ObjectPropertyTest/";
 
@@ -196,5 +196,5 @@ BOOST_AUTO_TEST_CASE(CMapFormatVCMI_ObjectPropertyTestMap)
 		c.compareTerrain("underground", actualUnderground, expectedUnderground);
 	}
 
-	logGlobal->info("CMapFormatVCMI_ObjectPropertyTestMap finish");
+	logGlobal->info("MapFormat_Objects finish");
 }
