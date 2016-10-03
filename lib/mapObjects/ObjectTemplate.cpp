@@ -64,7 +64,8 @@ ObjectTemplate::ObjectTemplate(const ObjectTemplate& other):
 	id(other.id),
 	subid(other.subid),
 	printPriority(other.printPriority),
-	animationFile(other.animationFile)
+	animationFile(other.animationFile),
+	editorAnimationFile(other.editorAnimationFile)
 {
 	//default copy constructor is failing with usedTiles this for unknown reason
 
@@ -81,6 +82,7 @@ ObjectTemplate & ObjectTemplate::operator=(const ObjectTemplate & rhs)
 	subid = rhs.subid;
 	printPriority = rhs.printPriority;
 	animationFile = rhs.animationFile;
+	editorAnimationFile = rhs.editorAnimationFile;
 
 	usedTiles.clear();
 	usedTiles.resize(rhs.usedTiles.size());

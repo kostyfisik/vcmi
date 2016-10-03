@@ -89,7 +89,7 @@ public:
 	{
 		h & usedTiles & allowedTerrains & animationFile & stringID;
 		h & id & subid & printPriority & visitDir;
-		if(version >= 761)
+		if(version >= 762)
 		{
 			h & editorAnimationFile;
 		}
