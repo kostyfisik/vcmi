@@ -294,9 +294,9 @@ CHeroTooltip::CHeroTooltip(Point pos, const InfoAboutHero &hero):
 }
 
 CHeroTooltip::CHeroTooltip(Point pos, const CGHeroInstance * hero):
-	CArmyTooltip(pos, InfoAboutHero(hero, true))
+	CArmyTooltip(pos, InfoAboutHero(hero, InfoAboutHero::EInfoLevel::DETAILED))
 {
-	init(InfoAboutHero(hero, true));
+	init(InfoAboutHero(hero, InfoAboutHero::EInfoLevel::DETAILED));
 }
 
 void CTownTooltip::init(const InfoAboutTown &town)
@@ -394,7 +394,7 @@ void MoraleLuckBox::set(const IBonusBearer *node)
 		text += CGI->generaltexth->arraytxt[noneTxtId];//no modifiers
 	else
 	{
-		for(const Bonus * elem : *modifierList)
+		for(auto& elem : *modifierList)
 		{
 			if(elem->val != 0)
 				//no bonuses with value 0

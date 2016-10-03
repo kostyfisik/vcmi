@@ -201,7 +201,7 @@ void CGCreature::onHeroVisit( const CGHeroInstance * h ) const
 
 }
 
-void CGCreature::initObj()
+void CGCreature::initObj(CRandomGenerator & rand)
 {
 	blockVisit = true;
 	switch(character)
@@ -210,13 +210,13 @@ void CGCreature::initObj()
 		character = -4;
 		break;
 	case 1:
-		character = cb->gameState()->getRandomGenerator().nextInt(1, 7);
+		character = rand.nextInt(1, 7);
 		break;
 	case 2:
-		character = cb->gameState()->getRandomGenerator().nextInt(1, 10);
+		character = rand.nextInt(1, 10);
 		break;
 	case 3:
-		character = cb->gameState()->getRandomGenerator().nextInt(4, 10);
+		character = rand.nextInt(4, 10);
 		break;
 	case 4:
 		character = 10;
@@ -228,7 +228,7 @@ void CGCreature::initObj()
 	CCreature &c = *VLC->creh->creatures[subID];
 	if(amount == 0)
 	{
-		amount = cb->gameState()->getRandomGenerator().nextInt(c.ammMin, c.ammMax);
+		amount = rand.nextInt(c.ammMin, c.ammMax);
 
 		if(amount == 0) //armies with 0 creatures are illegal
 		{
@@ -241,7 +241,7 @@ void CGCreature::initObj()
 	refusedJoining = false;
 }
 
-void CGCreature::newTurn() const
+void CGCreature::newTurn(CRandomGenerator & rand) const
 {//Works only for stacks of single type of size up to 2 millions
 	if (!notGrowingTeam)
 	{
@@ -434,7 +434,7 @@ void CGCreature::fight( const CGHeroInstance *h ) const
 			const auto & upgrades = getStack(slotID).type->upgrades;
 			if(!upgrades.empty())
 			{
-				auto it = RandomGeneratorUtil::nextItem(upgrades, cb->gameState()->getRandomGenerator());
+				auto it = RandomGeneratorUtil::nextItem(upgrades, CRandomGenerator::getDefault());
 				cb->changeStackType(StackLocation(this, slotID), VLC->creh->creatures[*it]);
 			}
 		}
@@ -656,7 +656,7 @@ void CGMine::onHeroVisit( const CGHeroInstance * h ) const
 
 }
 
-void CGMine::newTurn() const
+void CGMine::newTurn(CRandomGenerator & rand) const
 {
 	if(cb->getDate() == 1)
 		return;
@@ -667,12 +667,12 @@ void CGMine::newTurn() const
 	cb->giveResource(tempOwner, producedResource, producedQuantity);
 }
 
-void CGMine::initObj()
+void CGMine::initObj(CRandomGenerator & rand)
 {
 	if(isAbandoned())
 	{
 		//set guardians
-		int howManyTroglodytes = cb->gameState()->getRandomGenerator().nextInt(100, 199);
+		int howManyTroglodytes = rand.nextInt(100, 199);
 		auto troglodytes = new CStackInstance(CreatureID::TROGLODYTES, howManyTroglodytes);
 		putStack(SlotID(0), troglodytes);
 
@@ -683,7 +683,7 @@ void CGMine::initObj()
 				possibleResources.push_back(static_cast<Res::ERes>(i));
 
 		assert(!possibleResources.empty());
-		producedResource = *RandomGeneratorUtil::nextItem(possibleResources, cb->gameState()->getRandomGenerator());
+		producedResource = *RandomGeneratorUtil::nextItem(possibleResources, rand);
 		tempOwner = PlayerColor::NEUTRAL;
 	}
 	else
@@ -839,7 +839,7 @@ CGResource::CGResource()
 	amount = 0;
 }
 
-void CGResource::initObj()
+void CGResource::initObj(CRandomGenerator & rand)
 {
 	blockVisit = true;
 
@@ -847,14 +847,14 @@ void CGResource::initObj()
 	{
 		switch(subID)
 		{
-		case 6:
-			amount = cb->gameState()->getRandomGenerator().nextInt(500, 1000);
+		case Res::GOLD:
+			amount = rand.nextInt(5, 10) * 100;
 			break;
-		case 0: case 2:
-			amount = cb->gameState()->getRandomGenerator().nextInt(6, 10);
+		case Res::WOOD: case Res::ORE:
+			amount = rand.nextInt(6, 10);
 			break;
 		default:
-			amount = cb->gameState()->getRandomGenerator().nextInt(3, 5);
+			amount = rand.nextInt(3, 5);
 			break;
 		}
 	}
@@ -967,7 +967,7 @@ ObjectInstanceID CGTeleport::getRandomExit(const CGHeroInstance * h) const
 {
 	auto passableExits = getPassableExits(cb->gameState(), h, getAllExits(true));
 	if(passableExits.size())
-		return *RandomGeneratorUtil::nextItem(passableExits, cb->gameState()->getRandomGenerator());
+		return *RandomGeneratorUtil::nextItem(passableExits, CRandomGenerator::getDefault());
 
 	return ObjectInstanceID();
 }
@@ -1099,7 +1099,7 @@ void CGMonolith::teleportDialogAnswered(const CGHeroInstance *hero, ui32 answer,
 	cb->moveHero(hero->id, dPos, true);
 }
 
-void CGMonolith::initObj()
+void CGMonolith::initObj(CRandomGenerator & rand)
 {
 	std::vector<Obj> IDs;
 	IDs.push_back(ID);
@@ -1144,7 +1144,7 @@ void CGSubterraneanGate::onHeroVisit( const CGHeroInstance * h ) const
 	cb->showTeleportDialog(&td);
 }
 
-void CGSubterraneanGate::initObj()
+void CGSubterraneanGate::initObj(CRandomGenerator & rand)
 {
 	type = BOTH;
 }
@@ -1263,7 +1263,7 @@ void CGWhirlpool::teleportDialogAnswered(const CGHeroInstance *hero, ui32 answer
 	{
 		auto obj = cb->getObj(getRandomExit(hero));
 		std::set<int3> tiles = obj->getBlockedPos();
-		dPos = CGHeroInstance::convertPosition(*RandomGeneratorUtil::nextItem(tiles, cb->gameState()->getRandomGenerator()), true);
+		dPos = CGHeroInstance::convertPosition(*RandomGeneratorUtil::nextItem(tiles, CRandomGenerator::getDefault()), true);
 	}
 
 	cb->moveHero(hero->id, dPos, true);
@@ -1279,7 +1279,7 @@ bool CGWhirlpool::isProtected(const CGHeroInstance * h)
 	return false;
 }
 
-void CGArtifact::initObj()
+void CGArtifact::initObj(CRandomGenerator & rand)
 {
 	blockVisit = true;
 	if(ID == Obj::ARTIFACT)
@@ -1413,21 +1413,21 @@ void CGArtifact::serializeJsonOptions(JsonSerializeFormat& handler)
 
 	if(handler.saving && ID == Obj::SPELL_SCROLL)
 	{
-		const Bonus * b = storedArtifact->getBonusLocalFirst(Selector::type(Bonus::SPELL));
+		const std::shared_ptr<Bonus> b = storedArtifact->getBonusLocalFirst(Selector::type(Bonus::SPELL));
 		SpellID spellId(b->subtype);
 
 		handler.serializeId("spell", spellId, SpellID::NONE, &CSpellHandler::decodeSpell, &CSpellHandler::encodeSpell);
 	}
 }
 
-void CGWitchHut::initObj()
+void CGWitchHut::initObj(CRandomGenerator & rand)
 {
 	if (allowedAbilities.empty()) //this can happen for RMG. regular maps load abilities from map file
 	{
 		for (int i = 0; i < GameConstants::SKILL_QUANTITY; i++)
 			allowedAbilities.push_back(i);
 	}
-	ability = *RandomGeneratorUtil::nextItem(allowedAbilities, cb->gameState()->getRandomGenerator());
+	ability = *RandomGeneratorUtil::nextItem(allowedAbilities, rand);
 }
 
 void CGWitchHut::onHeroVisit( const CGHeroInstance * h ) const
@@ -1586,13 +1586,13 @@ void CGShrine::onHeroVisit( const CGHeroInstance * h ) const
 	{
 		iw.text.addTxt(MetaString::ADVOB_TXT,131);
 	}
-	else if(ID == Obj::SHRINE_OF_MAGIC_THOUGHT  && !h->getSecSkillLevel(SecondarySkill::WISDOM)) //it's third level spell and hero doesn't have wisdom
-	{
-		iw.text.addTxt(MetaString::ADVOB_TXT,130);
-	}
 	else if(vstd::contains(h->spells,spell))//hero already knows the spell
 	{
 		iw.text.addTxt(MetaString::ADVOB_TXT,174);
+	}
+	else if(ID == Obj::SHRINE_OF_MAGIC_THOUGHT  && !h->getSecSkillLevel(SecondarySkill::WISDOM)) //it's third level spell and hero doesn't have wisdom
+	{
+		iw.text.addTxt(MetaString::ADVOB_TXT,130);
 	}
 	else //give spell
 	{
@@ -1606,7 +1606,7 @@ void CGShrine::onHeroVisit( const CGHeroInstance * h ) const
 	cb->showInfoDialog(&iw);
 }
 
-void CGShrine::initObj()
+void CGShrine::initObj(CRandomGenerator & rand)
 {
 	if(spell == SpellID::NONE) //spell not set
 	{
@@ -1620,7 +1620,7 @@ void CGShrine::initObj()
 			return;
 		}
 
-		spell = *RandomGeneratorUtil::nextItem(possibilities, cb->gameState()->getRandomGenerator());
+		spell = *RandomGeneratorUtil::nextItem(possibilities, rand);
 	}
 }
 
@@ -1648,12 +1648,12 @@ void CGShrine::serializeJsonOptions(JsonSerializeFormat& handler)
 	handler.serializeId("spell", spell, SpellID::NONE, &CSpellHandler::decodeSpell, &CSpellHandler::encodeSpell);
 }
 
-void CGSignBottle::initObj()
+void CGSignBottle::initObj(CRandomGenerator & rand)
 {
 	//if no text is set than we pick random from the predefined ones
 	if(message.empty())
 	{
-		message = *RandomGeneratorUtil::nextItem(VLC->generaltexth->randsign, cb->gameState()->getRandomGenerator());
+		message = *RandomGeneratorUtil::nextItem(VLC->generaltexth->randsign, rand);
 	}
 
 	if(ID == Obj::OCEAN_BOTTLE)
@@ -1693,7 +1693,7 @@ void CGScholar::onHeroVisit( const CGHeroInstance * h ) const
 		))) //hero doesn't have a spellbook or already knows the spell or doesn't have Wisdom
 	{
 		type = PRIM_SKILL;
-		bid = cb->gameState()->getRandomGenerator().nextInt(GameConstants::PRIMARY_SKILLS - 1);
+		bid = CRandomGenerator::getDefault().nextInt(GameConstants::PRIMARY_SKILLS - 1);
 	}
 
 	InfoWindow iw;
@@ -1728,25 +1728,25 @@ void CGScholar::onHeroVisit( const CGHeroInstance * h ) const
 	cb->removeObject(this);
 }
 
-void CGScholar::initObj()
+void CGScholar::initObj(CRandomGenerator & rand)
 {
 	blockVisit = true;
 	if(bonusType == RANDOM)
 	{
-		bonusType = static_cast<EBonusType>(cb->gameState()->getRandomGenerator().nextInt(2));
+		bonusType = static_cast<EBonusType>(rand.nextInt(2));
 		switch(bonusType)
 		{
 		case PRIM_SKILL:
-			bonusID = cb->gameState()->getRandomGenerator().nextInt(GameConstants::PRIMARY_SKILLS -1);
+			bonusID = rand.nextInt(GameConstants::PRIMARY_SKILLS -1);
 			break;
 		case SECONDARY_SKILL:
-			bonusID = cb->gameState()->getRandomGenerator().nextInt(GameConstants::SKILL_QUANTITY -1);
+			bonusID = rand.nextInt(GameConstants::SKILL_QUANTITY -1);
 			break;
 		case SPELL:
 			std::vector<SpellID> possibilities;
 			for (int i = 1; i < 6; ++i)
 				cb->getAllowedSpells (possibilities, i);
-			bonusID = *RandomGeneratorUtil::nextItem(possibilities, cb->gameState()->getRandomGenerator());
+			bonusID = *RandomGeneratorUtil::nextItem(possibilities, rand);
 			break;
 		}
 	}
@@ -1853,7 +1853,7 @@ void CGMagi::reset()
 	eyelist.clear();
 }
 
-void CGMagi::initObj()
+void CGMagi::initObj(CRandomGenerator & rand)
 {
 	if (ID == Obj::EYE_OF_MAGI)
 	{
@@ -1899,12 +1899,12 @@ void CGMagi::onHeroVisit(const CGHeroInstance * h) const
 	}
 
 }
-void CGBoat::initObj()
+void CGBoat::initObj(CRandomGenerator & rand)
 {
 	hero = nullptr;
 }
 
-void CGSirens::initObj()
+void CGSirens::initObj(CRandomGenerator & rand)
 {
 	blockVisit = true;
 }
@@ -2090,7 +2090,7 @@ void CGObelisk::onHeroVisit( const CGHeroInstance * h ) const
 
 }
 
-void CGObelisk::initObj()
+void CGObelisk::initObj(CRandomGenerator & rand)
 {
 	obeliskCount++;
 }
@@ -2151,7 +2151,7 @@ void CGLighthouse::onHeroVisit( const CGHeroInstance * h ) const
 	}
 }
 
-void CGLighthouse::initObj()
+void CGLighthouse::initObj(CRandomGenerator & rand)
 {
 	if(tempOwner < PlayerColor::PLAYER_LIMIT)
 	{

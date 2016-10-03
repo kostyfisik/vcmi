@@ -240,6 +240,7 @@ int main(int argc, char** argv)
 		("autoSkip", "automatically skip turns in GUI")
 		("disable-video", "disable video player")
 		("nointro,i", "skips intro movies")
+		("donotstartserver,d","do not attempt to start server and just connect to it instead server")
         ("loadserver","specifies we are the multiplayer server for loaded games")
         ("loadnumplayers",po::value<int>(),"specifies the number of players connecting to a multiplayer game")
         ("loadhumanplayerindices",po::value<std::vector<int>>(),"Indexes of human players (0=Red, etc.)")
@@ -247,7 +248,8 @@ int main(int argc, char** argv)
         ("loadserverip",po::value<std::string>(),"IP for loaded game server")
 		("loadserverport",po::value<std::string>(),"port for loaded game server")
 		("testingport",po::value<std::string>(),"port for testing, override specified in config file")
-		("testingfileprefix",po::value<std::string>(),"prefix for auto save files");
+		("testingfileprefix",po::value<std::string>(),"prefix for auto save files")
+		("testingsavefrequency",po::value<int>(),"how often auto save should be created");
 
 	if(argc > 1)
 	{
@@ -276,6 +278,10 @@ int main(int argc, char** argv)
 	{
 		gNoGUI = true;
 		vm.insert(std::pair<std::string, po::variable_value>("onlyAI", po::variable_value()));
+	}
+	if(vm.count("donotstartserver"))
+	{
+		CServerHandler::DO_NOT_START_SERVER = true;
 	}
 
 	// Have effect on X11 system only (Linux).
@@ -308,6 +314,7 @@ int main(int argc, char** argv)
 		testingSettings["enabled"].Bool() = true;
 		testingSettings["port"].String() = vm["testingport"].as<std::string>();
 		testingSettings["prefix"].String() = vm["testingfileprefix"].as<std::string>();
+		testingSettings["savefrequency"].Float() = vm.count("testingsavefrequency") ? vm["testingsavefrequency"].as<int>() : 1;
 	}
 
 	// Initialize logging based on settings
@@ -407,7 +414,7 @@ int main(int argc, char** argv)
 			}
 		}
 
-		setScreenRes(res["width"].Float(), res["height"].Float(), video["bitsPerPixel"].Float(), video["displayIndex"].Float(), video["fullscreen"].Bool());
+		setScreenRes(res["width"].Float(), res["height"].Float(), video["bitsPerPixel"].Float(), video["fullscreen"].Bool(), video["displayIndex"].Float());
 		logGlobal->infoStream() <<"\tInitializing screen: "<<pomtime.getDiff();
 	}
 
@@ -717,10 +724,17 @@ void processCommand(const std::string &message)
 		Settings conf = settings.write["session"][what];
 
 		readed >> value;
+
 		if (value == "on")
+		{
 			conf->Bool() = true;
+			logGlobal->info("Option %s enabled!", what);
+		}
 		else if (value == "off")
+		{
 			conf->Bool() = false;
+			logGlobal->info("Option %s disabled!", what);
+		}
 	}
 	else if(cn == "sinfo")
 	{

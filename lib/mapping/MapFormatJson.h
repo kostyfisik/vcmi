@@ -19,7 +19,7 @@
 
 #include "../serializer/JsonSerializeFormat.h"
 
-class TriggeredEvent;
+struct TriggeredEvent;
 struct TerrainTile;
 struct PlayerInfo;
 class CGObjectInstance;

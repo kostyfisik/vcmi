@@ -17,6 +17,8 @@
 #include "CArtHandler.h"
 #include "CCreatureHandler.h"
 #include "spells/CSpellHandler.h"
+#include "StringConstants.h"
+#include "CGeneralTextHandler.h"
 
 const SlotID SlotID::COMMANDER_SLOT_PLACEHOLDER = SlotID(-2);
 const SlotID SlotID::SUMMONED_SLOT_PLACEHOLDER = SlotID(-3);
@@ -29,17 +31,17 @@ const PlayerColor PlayerColor::NEUTRAL = PlayerColor(255);
 const PlayerColor PlayerColor::PLAYER_LIMIT = PlayerColor(PLAYER_LIMIT_I);
 const TeamID TeamID::NO_TEAM = TeamID(255);
 
-CArtifact * ArtifactID::toArtifact() const
+const CArtifact * ArtifactID::toArtifact() const
 {
-	return VLC->arth->artifacts[*this];
+	return VLC->arth->artifacts.at(*this);
 }
 
-CCreature * CreatureID::toCreature() const
+const CCreature * CreatureID::toCreature() const
 {
-	return VLC->creh->creatures[*this];
+	return VLC->creh->creatures.at(*this);
 }
 
-CSpell * SpellID::toSpell() const
+const CSpell * SpellID::toSpell() const
 {
 	if(num < 0 || num >= VLC->spellh->objects.size())
 	{
@@ -55,6 +57,32 @@ CSpell * SpellID::toSpell() const
 bool PlayerColor::isValidPlayer() const
 {
 	return num < PLAYER_LIMIT_I;
+}
+
+std::string PlayerColor::getStr(bool L10n) const
+{
+	std::string ret = "unnamed";
+	if(isValidPlayer())
+	{
+		if(L10n)
+			ret = VLC->generaltexth->colors[num];
+		else
+			ret = GameConstants::PLAYER_COLOR_NAMES[num];
+	}
+	else if(L10n)
+	{
+		ret = VLC->generaltexth->allTexts[508];
+		ret[0] = std::tolower(ret[0]);
+	}
+
+	return ret;
+}
+
+std::string PlayerColor::getStrCap(bool L10n) const
+{
+	std::string ret = getStr(L10n);
+	ret[0] = std::toupper(ret[0]);
+	return ret;
 }
 
 std::ostream & operator<<(std::ostream & os, const Battle::ActionType actionType)

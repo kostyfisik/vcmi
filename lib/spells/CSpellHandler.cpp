@@ -91,14 +91,15 @@ CSpell::CSpell():
 	defaultProbability(0),
 	isRising(false), isDamage(false), isOffensive(false),
 	targetType(ETargetType::NO_TARGET),
-	mechanics(nullptr)
+	mechanics(),
+	adventureMechanics()
 {
 	levels.resize(GameConstants::SPELL_SCHOOL_LEVELS);
 }
 
 CSpell::~CSpell()
 {
-	delete mechanics;
+
 }
 
 void CSpell::applyBattle(BattleInfo * battle, const BattleSpellCast * packet) const
@@ -110,10 +111,15 @@ bool CSpell::adventureCast(const SpellCastEnvironment * env, AdventureSpellCastP
 {
 	assert(env);
 
-	return mechanics->adventureCast(env, parameters);
+	if(!adventureMechanics.get())
+	{
+		env->complain("Invalid adventure spell cast attempt!");
+		return false;
+	}
+	return adventureMechanics->adventureCast(env, parameters);
 }
 
-void CSpell::battleCast(const SpellCastEnvironment * env, BattleSpellCastParameters & parameters) const
+void CSpell::battleCast(const SpellCastEnvironment * env,  const BattleSpellCastParameters & parameters) const
 {
 	assert(env);
 	if(parameters.destinations.size()<1)
@@ -143,9 +149,62 @@ ui32 CSpell::calculateDamage(const ISpellCaster * caster, const CStack * affecte
 	return adjustRawDamage(caster, affectedCreature, calculateRawEffectValue(spellSchoolLevel, usedSpellPower));
 }
 
-ESpellCastProblem::ESpellCastProblem CSpell::canBeCast(const CBattleInfoCallback * cb, PlayerColor player) const
+ESpellCastProblem::ESpellCastProblem CSpell::canBeCast(const CBattleInfoCallback * cb, ECastingMode::ECastingMode mode, const ISpellCaster * caster) const
 {
-	return mechanics->canBeCast(cb, player);
+	const ESpellCastProblem::ESpellCastProblem generalProblem = mechanics->canBeCast(cb, mode, caster);
+
+	if(generalProblem != ESpellCastProblem::OK)
+		return generalProblem;
+
+	//check for creature target existence
+	//allow to cast spell if there is at least one smart target
+	if(mechanics->requiresCreatureTarget())
+	{
+		switch(mode)
+		{
+		case ECastingMode::HERO_CASTING:
+		case ECastingMode::CREATURE_ACTIVE_CASTING:
+		case ECastingMode::ENCHANTER_CASTING:
+		case ECastingMode::PASSIVE_CASTING:
+			{
+				TargetInfo tinfo(this, caster->getSpellSchoolLevel(this), mode);
+
+				bool targetExists = false;
+
+				for(const CStack * stack : cb->battleGetAllStacks())
+				{
+					bool immune = !(stack->isValidTarget(!tinfo.onlyAlive) && ESpellCastProblem::OK == isImmuneByStack(caster, stack));
+					bool casterStack = stack->owner == caster->getOwner();
+
+					if(!immune)
+					{
+						switch (positiveness)
+						{
+						case CSpell::POSITIVE:
+							if(casterStack)
+								targetExists = true;
+							break;
+						case CSpell::NEUTRAL:
+								targetExists = true;
+								break;
+						case CSpell::NEGATIVE:
+							if(!casterStack)
+								targetExists = true;
+							break;
+						}
+					}
+					if(targetExists)
+						break;
+				}
+				if(!targetExists)
+				{
+					return ESpellCastProblem::NO_APPROPRIATE_TARGET;
+				}
+			}
+			break;
+		}
+	}
+	return ESpellCastProblem::OK;
 }
 
 std::vector<BattleHex> CSpell::rangeInHexes(BattleHex centralHex, ui8 schoolLvl, ui8 side, bool *outDroppedHexes) const
@@ -153,23 +212,10 @@ std::vector<BattleHex> CSpell::rangeInHexes(BattleHex centralHex, ui8 schoolLvl,
 	return mechanics->rangeInHexes(centralHex,schoolLvl,side,outDroppedHexes);
 }
 
-std::set<const CStack *> CSpell::getAffectedStacks(const CBattleInfoCallback * cb, ECastingMode::ECastingMode mode, PlayerColor casterColor, int spellLvl, BattleHex destination, const ISpellCaster * caster) const
+std::vector<const CStack *> CSpell::getAffectedStacks(const CBattleInfoCallback * cb, ECastingMode::ECastingMode mode, const ISpellCaster * caster, int spellLvl, BattleHex destination) const
 {
-	ISpellMechanics::SpellTargetingContext ctx(this, cb,mode,casterColor,spellLvl,destination);
-
-	std::set<const CStack* > attackedCres = mechanics->getAffectedStacks(ctx);
-
-	//now handle immunities
-	auto predicate = [&, this](const CStack * s)->bool
-	{
-		bool hitDirectly = ctx.ti.alwaysHitDirectly && s->coversPos(destination);
-		bool notImmune = (ESpellCastProblem::OK == isImmuneByStack(caster, s));
-
-		return !(hitDirectly || notImmune);
-	};
-	vstd::erase_if(attackedCres, predicate);
-
-	return attackedCres;
+	SpellTargetingContext ctx(this, mode, caster, spellLvl, destination);
+	return mechanics->getAffectedStacks(cb, ctx);
 }
 
 CSpell::ETargetType CSpell::getTargetType() const
@@ -222,9 +268,17 @@ bool CSpell::isNeutral() const
 	return positiveness == NEUTRAL;
 }
 
-bool CSpell::isHealingSpell() const
+boost::logic::tribool CSpell::getPositiveness() const
 {
-	return isRisingSpell() || (id == SpellID::CURE);
+	switch (positiveness)
+	{
+	case CSpell::POSITIVE:
+		return true;
+	case CSpell::NEGATIVE:
+		return false;
+	default:
+		return boost::logic::indeterminate;
+	}
 }
 
 bool CSpell::isRisingSpell() const
@@ -305,56 +359,11 @@ void CSpell::getEffects(std::vector<Bonus> & lst, const int level) const
 	}
 }
 
-ESpellCastProblem::ESpellCastProblem CSpell::isImmuneAt(const CBattleInfoCallback * cb, const ISpellCaster * caster, ECastingMode::ECastingMode mode, BattleHex destination) const
+ESpellCastProblem::ESpellCastProblem CSpell::canBeCastAt(const CBattleInfoCallback * cb, const ISpellCaster * caster, ECastingMode::ECastingMode mode, BattleHex destination) const
 {
-	// Get all stacks at destination hex. only alive if not rising spell
-	TStacks stacks = cb->battleGetStacksIf([=](const CStack * s)
-	{
-		return s->coversPos(destination) && s->isValidTarget(isRisingSpell());
-	});
+	SpellTargetingContext ctx(this, mode, caster, caster->getSpellSchoolLevel(this), destination);
 
-	if(!stacks.empty())
-	{
-		bool allImmune = true;
-
-		ESpellCastProblem::ESpellCastProblem problem = ESpellCastProblem::INVALID;
-
-		for(auto s : stacks)
-		{
-			ESpellCastProblem::ESpellCastProblem res = isImmuneByStack(caster,s);
-
-			if(res == ESpellCastProblem::OK)
-			{
-				allImmune = false;
-			}
-			else
-			{
-				problem = res;
-			}
-		}
-
-		if(allImmune)
-			return problem;
-	}
-	else //no target stack on this tile
-	{
-		if(getTargetType() == CSpell::CREATURE)
-		{
-			if(caster && mode == ECastingMode::HERO_CASTING) //TODO why???
-			{
-				const CSpell::TargetInfo ti(this, caster->getSpellSchoolLevel(this), mode);
-
-				if(!ti.massive)
-					return ESpellCastProblem::WRONG_SPELL_TARGET;
-			}
-			else
-			{
- 				return ESpellCastProblem::WRONG_SPELL_TARGET;
-			}
-		}
-	}
-
-	return ESpellCastProblem::OK;
+	return mechanics->canBeCast(cb, ctx);
 }
 
 int CSpell::adjustRawDamage(const ISpellCaster * caster, const CStack * affectedCreature, int rawDamage) const
@@ -517,59 +526,6 @@ ESpellCastProblem::ESpellCastProblem CSpell::isImmuneByStack(const ISpellCaster 
 	return ESpellCastProblem::OK;
 }
 
-void CSpell::prepareBattleLog(const CBattleInfoCallback * cb,  const BattleSpellCast * packet, std::vector<std::string> & logLines) const
-{
-	bool displayDamage = true;
-
-	std::string casterName("Something"); //todo: localize
-
-	if(packet->castByHero)
-		casterName = cb->battleGetHeroInfo(packet->side).name;
-
-	{
-		const auto casterStackID = packet->casterStack;
-
-		if(casterStackID > 0)
-		{
-			const CStack * casterStack = cb->battleGetStackByID(casterStackID);
-			if(casterStack != nullptr)
-				casterName = casterStack->type->namePl;
-		}
-	}
-
-	if(packet->affectedCres.size() == 1)
-	{
-		const CStack * attackedStack = cb->battleGetStackByID(*packet->affectedCres.begin(), false);
-
-		const std::string attackedNamePl = attackedStack->getCreature()->namePl;
-
-		if(packet->castByHero)
-		{
-			const std::string fmt = VLC->generaltexth->allTexts[195];
-			logLines.push_back(boost::to_string(boost::format(fmt) % casterName % this->name % attackedNamePl));
-		}
-		else
-		{
-			mechanics->battleLogSingleTarget(logLines, packet, casterName, attackedStack, displayDamage);
-		}
-	}
-	else
-	{
-		boost::format text(VLC->generaltexth->allTexts[196]);
-		text % casterName % this->name;
-		logLines.push_back(text.str());
-	}
-
-
-	if(packet->dmgToDisplay > 0 && displayDamage)
-	{
-		boost::format dmgInfo(VLC->generaltexth->allTexts[376]);
-		dmgInfo % this->name % packet->dmgToDisplay;
-		logLines.push_back(dmgInfo.str());
-	}
-}
-
-
 void CSpell::setIsOffensive(const bool val)
 {
 	isOffensive = val;
@@ -598,13 +554,8 @@ void CSpell::setup()
 
 void CSpell::setupMechanics()
 {
-	if(nullptr != mechanics)
-	{
-		logGlobal->errorStream() << "Spell " << this->name << ": mechanics already set";
-		delete mechanics;
-	}
-
 	mechanics = ISpellMechanics::createMechanics(this);
+	adventureMechanics = IAdventureSpellMechanics::createMechanics(this);
 }
 
 ///CSpell::AnimationInfo
@@ -660,6 +611,10 @@ CSpell::TargetInfo::TargetInfo(const CSpell * spell, const int level, ECastingMo
 	else if(mode == ECastingMode::SPELL_LIKE_ATTACK)
 	{
 		alwaysHitDirectly = true;
+	}
+	else if(mode == ECastingMode::CREATURE_ACTIVE_CASTING)
+	{
+		massive = false;//FIXME: find better solution for Commander spells
 	}
 }
 
@@ -1012,7 +967,7 @@ CSpell * CSpellHandler::loadFromJson(const JsonNode & json, const std::string & 
 		for(const auto & elem : levelNode["effects"].Struct())
 		{
 			const JsonNode & bonusNode = elem.second;
-			Bonus * b = JsonUtils::parseBonus(bonusNode);
+			auto b = JsonUtils::parseBonus(bonusNode);
 			const bool usePowerAsValue = bonusNode["val"].isNull();
 
 			//TODO: make this work. see CSpellHandler::afterLoadFinalization()
@@ -1038,10 +993,9 @@ void CSpellHandler::afterLoadFinalization()
 	{
 		for(auto & level: spell->levels)
 		{
-			for(Bonus * bonus : level.effectsTmp)
+			for(auto bonus : level.effectsTmp)
 			{
 				level.effects.push_back(*bonus);
-				delete bonus;
 			}
 			level.effectsTmp.clear();
 

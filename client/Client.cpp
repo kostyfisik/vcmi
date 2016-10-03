@@ -285,7 +285,7 @@ void CClient::loadGame(const std::string & fname, const bool server, const std::
 
 		if(clientSaveName.empty())
 			throw std::runtime_error("Cannot open client part of " + fname);
-		if(controlServerSaveName.empty())
+		if(controlServerSaveName.empty() || !boost::filesystem::exists(controlServerSaveName))
 			throw std::runtime_error("Cannot open server part of " + fname);
 
 		{
@@ -928,10 +928,15 @@ std::string CClient::aiNameForPlayer(const PlayerSettings &ps, bool battleAI)
 	return goodAI;
 }
 
+bool CServerHandler::DO_NOT_START_SERVER = false;
 
 void CServerHandler::startServer()
 {
+	if(DO_NOT_START_SERVER)
+		return;
+
 	th.update();
+
 	serverThread = new boost::thread(&CServerHandler::callServer, this); //runs server executable;
 	if(verbose)
 		logNetwork->infoStream() << "Setting up thread calling server: " << th.getDiff();
@@ -939,6 +944,9 @@ void CServerHandler::startServer()
 
 void CServerHandler::waitForServer()
 {
+	if(DO_NOT_START_SERVER)
+		return;
+
 	if(!serverThread)
 		startServer();
 

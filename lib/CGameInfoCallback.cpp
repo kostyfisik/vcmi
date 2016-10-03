@@ -279,18 +279,30 @@ bool CGameInfoCallback::getHeroInfo(const CGObjectInstance * hero, InfoAboutHero
 	ERROR_RET_VAL_IF(!h, "That's not a hero!", false);
 	ERROR_RET_VAL_IF(!isVisible(h->getPosition(false)), "That hero is not visible!", false);
 
-	bool accessFlag = hasAccess(h->tempOwner);
+	InfoAboutHero::EInfoLevel infoLevel = InfoAboutHero::EInfoLevel::BASIC;
 
-	if(!accessFlag && nullptr != selectedObject)
+	if(hasAccess(h->tempOwner))
+		infoLevel = InfoAboutHero::EInfoLevel::DETAILED;
+
+	if ( (infoLevel == InfoAboutHero::EInfoLevel::BASIC) && gs->curB) //if it's battle we can get enemy hero full data
+	{
+		if(gs->curB->playerHasAccessToHeroInfo(*player, h))
+			infoLevel = InfoAboutHero::EInfoLevel::INBATTLE;
+	}
+
+	if( (infoLevel == InfoAboutHero::EInfoLevel::BASIC) && nullptr != selectedObject)
 	{
 		const CGHeroInstance * selectedHero = dynamic_cast<const CGHeroInstance *>(selectedObject);
 		if(nullptr != selectedHero)
-			accessFlag = selectedHero->hasVisions(hero, 1);
+			if(selectedHero->hasVisions(hero, 1))
+				infoLevel = InfoAboutHero::EInfoLevel::DETAILED;
 	}
 
-	dest.initFromHero(h, accessFlag);
+	dest.initFromHero(h, infoLevel);
 
 	//DISGUISED bonus implementation
+
+	bool disguiseFlag = (infoLevel == InfoAboutHero::EInfoLevel::DETAILED);
 
 	if(getPlayerRelations(getLocalPlayer(), hero->tempOwner) == PlayerRelations::ENEMIES)
 	{
@@ -320,7 +332,7 @@ bool CGameInfoCallback::getHeroInfo(const CGObjectInstance * hero, InfoAboutHero
 				}
 		};
 
-		auto doAdvancedDisguise = [accessFlag, &doBasicDisguise](InfoAboutHero & info)
+		auto doAdvancedDisguise = [disguiseFlag, &doBasicDisguise](InfoAboutHero & info)
 		{
 			doBasicDisguise(info);
 
@@ -527,6 +539,24 @@ EBuildingState::EBuildingState CGameInfoCallback::canBuildStructure( const CGTow
 	//can we build it?
 	if(vstd::contains(t->forbiddenBuildings, ID))
 		return EBuildingState::FORBIDDEN; //forbidden
+
+	auto possiblyNotBuiltTest = [&](BuildingID id) -> bool
+	{
+		return ((id == BuildingID::CAPITOL) ? true : !t->hasBuilt(id));
+	};
+
+	std::function<bool(BuildingID id)> allowedTest = [&](BuildingID id) -> bool
+	{
+		if (vstd::contains(t->forbiddenBuildings, id))
+		{
+			return false;
+		}
+
+		return t->genBuildingRequirements(id, true).satisfiable(allowedTest, possiblyNotBuiltTest);
+	};
+
+	if (!t->genBuildingRequirements(ID, true).satisfiable(allowedTest, possiblyNotBuiltTest))
+		return EBuildingState::FORBIDDEN;
 
 	if(ID == BuildingID::CAPITOL)
 	{

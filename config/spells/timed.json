@@ -250,7 +250,6 @@
 			"positive": true
 		}
 	},
-
 	"magicMirror" : {
 		"index" : 36,
 		"targetType" : "CREATURE",
@@ -859,7 +858,7 @@
 			"affect":["C15SPA0"]
 		},
 		"sounds": {
-			"cast": "HASTE"
+			"cast": "TAILWIND"
 		},
 		"levels" : {
 			"base":{
@@ -1050,7 +1049,6 @@
 			"positive": true
 		}
 	},
-
 	"counterstrike" : {
 		"index" : 58,
 		"targetType" : "CREATURE",
@@ -1113,41 +1111,19 @@
 				"effects" : {
 					"attacksNearestCreature" : {
 						"type" : "ATTACKS_NEAREST_CREATURE",
-						"duration" : "N_TURNS",
-						"turns" : 1
-					}
-				}
-			},
-			"none":{
-				"effects" : {
-					"attacksNearestCreature" : {
-						"val" : 0
-					}
-				}
-			},
-			"basic":{
-				"effects" : {
-					"attacksNearestCreature" : {
-						"val" : 1
+						"duration" : "STACK_GETS_TURN"
 					}
 				}
 			},
 			"advanced":{
-				"range" : "0-1",
-				"effects" : {
-					"attacksNearestCreature" : {
-						"val" : 2
-					}
-				}
+				"range" : "0-1"
 			},
 			"expert":{
-				"range" : "0-2",
-				"effects" : {
-					"attacksNearestCreature" : {
-						"val" : 3
-					}
-				}
+				"range" : "0-2"
 			}
+		},
+		"counters" : {
+			"spell.hypnotize": true
 		},
 		"absoluteImmunity" : {
 			"SIEGE_WEAPON": true
@@ -1210,6 +1186,9 @@
 					}
 				}
 			}
+		},
+		"counters" : {
+			"spell.berserk": true
 		},
 		"absoluteImmunity" : {
 			"SIEGE_WEAPON": true
@@ -1309,31 +1288,38 @@
 						"type" : "NOT_ACTIVE",
 						"subtype" : 62,
 						"duration" : [
-							"UNITL_BEING_ATTACKED",
+							"UNTIL_BEING_ATTACKED",
 							"N_TURNS"
 						]
 					},
 					"generalAttackReduction" : {
 						"type" : "GENERAL_ATTACK_REDUCTION",
 						"duration" : [
-							"UNITL_BEING_ATTACKED",
+							"UNTIL_BEING_ATTACKED",
 							"N_TURNS"
 						]
-					},
+					}
+				}
+			},
+			"expert":{
+				"effects" : {
 					"noRetaliation" : {
 						"val" : 0,
 						"type" : "NO_RETALIATION",
-						"duration" : "UNITL_BEING_ATTACKED"
+						"duration" : [
+							"UNTIL_BEING_ATTACKED",
+							"N_TURNS"
+						]
 					}
 				}
 			}
 		},
 		"absoluteImmunity" : {
-			"SIEGE_WEAPON": true
+			"SIEGE_WEAPON": true,
+			"UNDEAD": true
 		},
 		"immunity" : {
 			"MIND_IMMUNITY": true,
-			"UNDEAD": true,
 			"NON_LIVING": true
 		},
 		"flags" : {

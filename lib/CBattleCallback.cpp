@@ -52,7 +52,7 @@ namespace SiegeStuffThatShouldBeMovedToHandlers //  <=== TODO
 		const bool stackLeft = pos1 < wallInStackLine;
 		const bool destLeft = pos2 < wallInDestLine;
 
-		return stackLeft != destLeft;
+		return stackLeft == destLeft;
 	}
 
 	// parts of wall
@@ -70,7 +70,8 @@ namespace SiegeStuffThatShouldBeMovedToHandlers //  <=== TODO
 		std::make_pair(45,  EWallPart::INDESTRUCTIBLE_PART),
 		std::make_pair(62,  EWallPart::INDESTRUCTIBLE_PART),
 		std::make_pair(112, EWallPart::INDESTRUCTIBLE_PART),
-		std::make_pair(147, EWallPart::INDESTRUCTIBLE_PART)
+		std::make_pair(147, EWallPart::INDESTRUCTIBLE_PART),
+		std::make_pair(165, EWallPart::INDESTRUCTIBLE_PART)
 	};
 
 	static EWallPart::EWallPart hexToWallPart(BattleHex hex)
@@ -331,7 +332,8 @@ InfoAboutHero CBattleInfoEssentials::battleGetHeroInfo( ui8 side ) const
 		return InfoAboutHero();
 	}
 
-	return InfoAboutHero(hero, battleDoWeKnowAbout(side));
+	InfoAboutHero::EInfoLevel infoLevel = battleDoWeKnowAbout(side) ? InfoAboutHero::EInfoLevel::DETAILED : InfoAboutHero::EInfoLevel::BASIC;
+	return InfoAboutHero(hero, infoLevel);
 }
 
 int CBattleInfoEssentials::battleCastSpells(ui8 side) const
@@ -345,9 +347,15 @@ const IBonusBearer * CBattleInfoEssentials::getBattleNode() const
 	return getBattle();
 }
 
-ESpellCastProblem::ESpellCastProblem CBattleInfoCallback::battleCanCastSpell(PlayerColor player, ECastingMode::ECastingMode mode) const
+ESpellCastProblem::ESpellCastProblem CBattleInfoCallback::battleCanCastSpell(const ISpellCaster * caster, ECastingMode::ECastingMode mode) const
 {
 	RETURN_IF_NOT_BATTLE(ESpellCastProblem::INVALID);
+	if(caster == nullptr)
+	{
+		logGlobal->errorStream() << "CBattleInfoCallback::battleCanCastSpell: no spellcaster.";
+		return ESpellCastProblem::INVALID;
+	}
+	const PlayerColor player = caster->getOwner();
 	const ui8 side = playerToSide(player);
 	if(!battleDoWeKnowAbout(side))
 	{
@@ -355,21 +363,20 @@ ESpellCastProblem::ESpellCastProblem CBattleInfoCallback::battleCanCastSpell(Pla
 		return ESpellCastProblem::INVALID;
 	}
 
+	if(battleTacticDist())
+		return ESpellCastProblem::ONGOING_TACTIC_PHASE;
+
 	switch (mode)
 	{
 	case ECastingMode::HERO_CASTING:
 		{
-			if(battleTacticDist())
-				return ESpellCastProblem::ONGOING_TACTIC_PHASE;
 			if(battleCastSpells(side) > 0)
 				return ESpellCastProblem::ALREADY_CASTED_THIS_TURN;
 
-			auto hero = battleGetFightingHero(side);
+			auto hero = dynamic_cast<const CGHeroInstance *>(caster);
 
 			if(!hero)
 				return ESpellCastProblem::NO_HERO_TO_CAST_SPELL;
-			if(!hero->getArt(ArtifactPosition::SPELLBOOK))
-				return ESpellCastProblem::NO_SPELLBOOK;
 			if(hero->hasBonusOfType(Bonus::BLOCK_ALL_MAGIC))
 				return ESpellCastProblem::MAGIC_IS_BLOCKED;
 		}
@@ -416,6 +423,18 @@ ui8 CBattleInfoEssentials::playerToSide(PlayerColor player) const
 	return ret;
 }
 
+bool CBattleInfoEssentials::playerHasAccessToHeroInfo(PlayerColor player, const CGHeroInstance * h) const
+{
+	RETURN_IF_NOT_BATTLE(false);
+	ui8 playerSide = playerToSide(player);
+	if (playerSide != (ui8)-1)
+	{
+		if (getBattle()->sides[!playerSide].hero == h)
+			return true;
+	}
+	return false;
+}
+
 ui8 CBattleInfoEssentials::battleGetSiegeLevel() const
 {
 	RETURN_IF_NOT_BATTLE(0);
@@ -425,8 +444,10 @@ ui8 CBattleInfoEssentials::battleGetSiegeLevel() const
 bool CBattleInfoEssentials::battleCanSurrender(PlayerColor player) const
 {
 	RETURN_IF_NOT_BATTLE(false);
-	//conditions like for fleeing + enemy must have a hero
-	return battleCanFlee(player) && battleHasHero(!playerToSide(player));
+	ui8 mySide = playerToSide(player);
+	bool iAmSiegeDefender = ( mySide == BattleSide::DEFENDER  &&  battleGetSiegeLevel() );
+	//conditions like for fleeing (except escape tunnel presence) + enemy must have a hero
+	return battleCanFlee(player) && !iAmSiegeDefender && battleHasHero(!mySide);
 }
 
 bool CBattleInfoEssentials::battleHasHero(ui8 side) const
@@ -453,6 +474,32 @@ EGateState CBattleInfoEssentials::battleGetGateState() const
 		return EGateState::NONE;
 
 	return getBattle()->si.gateState;
+}
+
+PlayerColor CBattleInfoEssentials::battleGetOwner(const CStack * stack) const
+{
+	RETURN_IF_NOT_BATTLE(PlayerColor::CANNOT_DETERMINE);
+	if(stack->hasBonusOfType(Bonus::HYPNOTIZED))
+		return getBattle()->theOtherPlayer(stack->owner);
+	else
+		return stack->owner;
+}
+
+const CGHeroInstance * CBattleInfoEssentials::battleGetOwnerHero(const CStack * stack) const
+{
+	RETURN_IF_NOT_BATTLE(nullptr);
+	return getBattle()->sides.at(playerToSide(battleGetOwner(stack))).hero;
+}
+
+bool CBattleInfoEssentials::battleMatchOwner(const CStack * attacker, const CStack * defender, const boost::logic::tribool positivness /* = false*/) const
+{
+	RETURN_IF_NOT_BATTLE(false);
+	if(boost::logic::indeterminate(positivness))
+		return true;
+	else if(defender->owner != battleGetOwner(defender))
+		return true;//mind controlled unit is attackable for both sides
+	else
+		return (battleGetOwner(attacker) == battleGetOwner(defender)) == positivness;
 }
 
 si8 CBattleInfoCallback::battleHasWallPenalty( const CStack * stack, BattleHex destHex ) const
@@ -490,7 +537,11 @@ si8 CBattleInfoCallback::battleCanTeleportTo(const CStack * stack, BattleHex des
 	if (!getAccesibility(stack).accessible(destHex, stack))
 		return false;
 
-	if (battleGetSiegeLevel() && telportLevel < 2) //check for wall
+	const ui8 siegeLevel = battleGetSiegeLevel();
+
+	//check for wall
+	//advanced teleport can pass wall of fort|citadel, expert - of castle
+	if ((siegeLevel > CGTownInstance::NONE && telportLevel < 2) || (siegeLevel >= CGTownInstance::CASTLE && telportLevel < 3))
 		return sameSideOfWall(stack->position, destHex);
 
 	return true;
@@ -521,15 +572,15 @@ std::set<BattleHex> CBattleInfoCallback::battleGetAttackedHexes(const CStack* at
 	return attackedHexes;
 }
 
-SpellID CBattleInfoCallback::battleGetRandomStackSpell(const CStack * stack, ERandomSpell mode) const
+SpellID CBattleInfoCallback::battleGetRandomStackSpell(CRandomGenerator & rand, const CStack * stack, ERandomSpell mode) const
 {
 	switch (mode)
 	{
 	case RANDOM_GENIE:
-		return getRandomBeneficialSpell(stack); //target
+		return getRandomBeneficialSpell(rand, stack); //target
 		break;
 	case RANDOM_AIMED:
-		return getRandomCastedSpell(stack); //caster
+		return getRandomCastedSpell(rand, stack); //caster
 		break;
 	default:
 		logGlobal->errorStream() << "Incorrect mode of battleGetRandomSpell (" << mode <<")";
@@ -804,7 +855,7 @@ bool CBattleInfoCallback::battleCanAttack(const CStack * stack, const CStack * t
 	if (!stack || !target)
 		return false;
 
-	if (stack->owner == target->owner)
+	if(!battleMatchOwner(stack, target))
 		return false;
 
 	auto &id = stack->getCreature()->idNumber;
@@ -835,9 +886,8 @@ bool CBattleInfoCallback::battleCanShoot(const CStack * stack, BattleHex dest) c
 	if(stack->getCreature()->idNumber == CreatureID::CATAPULT && dst) //catapult cannot attack creatures
 		return false;
 
-	//const CGHeroInstance * stackHero = battleGetOwner(stack);
 	if(stack->hasBonusOfType(Bonus::SHOOTER)//it's shooter
-		&& stack->owner != dst->owner
+		&& battleMatchOwner(stack, dst)
 		&& dst->alive()
 		&& (!battleIsStackBlocked(stack)  ||  stack->hasBonusOfType(Bonus::FREE_SHOOTING))
 		&& stack->shots
@@ -881,7 +931,7 @@ TDmgRange CBattleInfoCallback::calculateDmgRange(const BattleAttackInfo &info) c
 	{ //minDmg and maxDmg are multiplied by hero attack + 1
 		auto retreiveHeroPrimSkill = [&](int skill) -> int
 		{
-			const Bonus *b = info.attackerBonuses->getBonus(Selector::sourceTypeSel(Bonus::HERO_BASE_SKILL).And(Selector::typeSubtype(Bonus::PRIMARY_SKILL, skill)));
+			const std::shared_ptr<Bonus> b = info.attackerBonuses->getBonus(Selector::sourceTypeSel(Bonus::HERO_BASE_SKILL).And(Selector::typeSubtype(Bonus::PRIMARY_SKILL, skill)));
 			return b ? b->val : 0; //if there is no hero or no info on his primary skill, return 0
 		};
 
@@ -898,14 +948,15 @@ TDmgRange CBattleInfoCallback::calculateDmgRange(const BattleAttackInfo &info) c
 	double multDefenceReduction = (100 - battleBonusValue (info.attackerBonuses, Selector::type(Bonus::ENEMY_DEFENCE_REDUCTION))) / 100.0;
 	attackDefenceDifference -= info.defenderBonuses->Defense() * multDefenceReduction;
 
-	if(const Bonus *slayerEffect = info.attackerBonuses->getEffect(SpellID::SLAYER)) //slayer handling //TODO: apply only ONLY_MELEE_FIGHT / DISTANCE_FIGHT?
+	if(const std::shared_ptr<Bonus> slayerEffect = info.attackerBonuses->getBonus(Selector::type(Bonus::SLAYER))) //slayer handling //TODO: apply only ONLY_MELEE_FIGHT / DISTANCE_FIGHT?
 	{
 		std::vector<int> affectedIds;
 		int spLevel = slayerEffect->val;
 
+		//FIXME: do not check all creatures
 		for(int g = 0; g < VLC->creh->creatures.size(); ++g)
 		{
-			for(const Bonus *b : VLC->creh->creatures[g]->getBonusList())
+			for(const std::shared_ptr<Bonus> b : VLC->creh->creatures[g]->getBonusList())
 			{
 				if ( (b->type == Bonus::KING3 && spLevel >= 3) || //expert
 					(b->type == Bonus::KING2 && spLevel >= 2) || //adv +
@@ -992,14 +1043,14 @@ TDmgRange CBattleInfoCallback::calculateDmgRange(const BattleAttackInfo &info) c
 	TBonusListPtr curseEffects = info.attackerBonuses->getBonuses(Selector::type(Bonus::ALWAYS_MINIMUM_DAMAGE));
 	TBonusListPtr blessEffects = info.attackerBonuses->getBonuses(Selector::type(Bonus::ALWAYS_MAXIMUM_DAMAGE));
 	int curseBlessAdditiveModifier = blessEffects->totalValue() - curseEffects->totalValue();
-	double curseMultiplicativePenalty = curseEffects->size() ? (*std::max_element(curseEffects->begin(), curseEffects->end(), &Bonus::compareByAdditionalInfo))->additionalInfo : 0;
+	double curseMultiplicativePenalty = curseEffects->size() ? (*std::max_element(curseEffects->begin(), curseEffects->end(), &Bonus::compareByAdditionalInfo<std::shared_ptr<Bonus>>))->additionalInfo : 0;
 
 	if(curseMultiplicativePenalty) //curse handling (partial, the rest is below)
 	{
 		multBonus *= 1.0 - curseMultiplicativePenalty/100;
 	}
 
-	auto isAdvancedAirShield = [](const Bonus *bonus)
+	auto isAdvancedAirShield = [](const Bonus* bonus)
 	{
 		return bonus->source == Bonus::SPELL_EFFECT
 			&& bonus->sid == SpellID::AIR_SHIELD
@@ -1076,15 +1127,15 @@ TDmgRange CBattleInfoCallback::calculateDmgRange( const CStack* attacker, const 
 	return calculateDmgRange(bai);
 }
 
-TDmgRange CBattleInfoCallback::battleEstimateDamage(const CStack * attacker, const CStack * defender, TDmgRange * retaliationDmg) const
+TDmgRange CBattleInfoCallback::battleEstimateDamage(CRandomGenerator & rand, const CStack * attacker, const CStack * defender, TDmgRange * retaliationDmg) const
 {
 	RETURN_IF_NOT_BATTLE(std::make_pair(0, 0));
 	const bool shooting = battleCanShoot(attacker, defender->position);
 	const BattleAttackInfo bai(attacker, defender, shooting);
-	return battleEstimateDamage(bai, retaliationDmg);
+	return battleEstimateDamage(rand, bai, retaliationDmg);
 }
 
-std::pair<ui32, ui32> CBattleInfoCallback::battleEstimateDamage(const BattleAttackInfo &bai, std::pair<ui32, ui32> * retaliationDmg /*= nullptr*/) const
+std::pair<ui32, ui32> CBattleInfoCallback::battleEstimateDamage(CRandomGenerator & rand, const BattleAttackInfo &bai, std::pair<ui32, ui32> * retaliationDmg /*= nullptr*/) const
 {
 	RETURN_IF_NOT_BATTLE(std::make_pair(0, 0));
 
@@ -1106,7 +1157,7 @@ std::pair<ui32, ui32> CBattleInfoCallback::battleEstimateDamage(const BattleAtta
 			{
 				BattleStackAttacked bsa;
 				bsa.damageAmount = ret.*pairElems[i];
-				bai.defender->prepareAttacked(bsa, gs->getRandomGenerator(), bai.defenderCount);
+				bai.defender->prepareAttacked(bsa, rand, bai.defenderCount);
 
 				auto retaliationAttack = bai.reverse();
 				retaliationAttack.attackerCount = bsa.newAmount;
@@ -1640,7 +1691,7 @@ ESpellCastProblem::ESpellCastProblem CBattleInfoCallback::battleCanCastThisSpell
 	if(!battleDoWeKnowAbout(side))
 		return ESpellCastProblem::INVALID;
 
-	ESpellCastProblem::ESpellCastProblem genProblem = battleCanCastSpell(player, mode);
+	ESpellCastProblem::ESpellCastProblem genProblem = battleCanCastSpell(caster, mode);
 	if(genProblem != ESpellCastProblem::OK)
 		return genProblem;
 
@@ -1650,6 +1701,8 @@ ESpellCastProblem::ESpellCastProblem CBattleInfoCallback::battleCanCastThisSpell
 		{
 			const CGHeroInstance * castingHero = dynamic_cast<const CGHeroInstance *>(caster);//todo: unify hero|creature spell cost
 			assert(castingHero);
+			if(!castingHero->getArt(ArtifactPosition::SPELLBOOK))
+				return ESpellCastProblem::NO_SPELLBOOK;
 			if(!castingHero->canCastThisSpell(spell))
 				return ESpellCastProblem::HERO_DOESNT_KNOW_SPELL;
 			if(castingHero->mana < battleGetSpellCost(spell, castingHero)) //not enough mana
@@ -1661,126 +1714,12 @@ ESpellCastProblem::ESpellCastProblem CBattleInfoCallback::battleCanCastThisSpell
 	if(!spell->combatSpell)
 		return ESpellCastProblem::ADVMAP_SPELL_INSTEAD_OF_BATTLE_SPELL;
 
-	const ESpellCastProblem::ESpellCastProblem specificProblem = spell->canBeCast(this, player);
-
-	if(specificProblem != ESpellCastProblem::OK)
-		return specificProblem;
-
-	if(spell->isNegative() || spell->hasEffects())
-	{
-		bool allStacksImmune = true;
-		//we are interested only in enemy stacks when casting offensive spells
-		//TODO: should hero be able to cast non-smart negative spell if all enemy stacks are immune?
-		auto stacks = spell->isNegative() ? battleAliveStacks(!side) : battleAliveStacks();
-		for(auto stack : stacks)
-		{
-			if(ESpellCastProblem::OK == spell->isImmuneByStack(caster, stack))
-			{
-				allStacksImmune = false;
-				break;
-			}
-		}
-
-		if(allStacksImmune)
-			return ESpellCastProblem::NO_APPROPRIATE_TARGET;
-	}
-
-	if(battleMaxSpellLevel(side) < spell->level) //effect like Recanter's Cloak or Orb of Inhibition
+	//effect like Recanter's Cloak. Blocks also passive casting.
+	//TODO: check creature abilities to block
+	if(battleMaxSpellLevel(side) < spell->level)
 		return ESpellCastProblem::SPELL_LEVEL_LIMIT_EXCEEDED;
 
-	//checking if there exists an appropriate target
-	switch(spell->getTargetType())
-	{
-	case CSpell::CREATURE:
-		if(mode == ECastingMode::HERO_CASTING)
-		{
-			const CSpell::TargetInfo ti(spell, caster->getSpellSchoolLevel(spell));
-			bool targetExists = false;
-
-			for(const CStack * stack : battleGetAllStacks()) //dead stacks will be immune anyway
-			{
-				bool immune =  ESpellCastProblem::OK != spell->isImmuneByStack(caster, stack);
-				bool casterStack = stack->owner == caster->getOwner();
-
-				if(!immune)
-				{
-					switch (spell->positiveness)
-					{
-					case CSpell::POSITIVE:
-						if(casterStack || !ti.smart)
-						{
-							targetExists = true;
-							break;
-						}
-						break;
-					case CSpell::NEUTRAL:
-							targetExists = true;
-							break;
-					case CSpell::NEGATIVE:
-						if(!casterStack || !ti.smart)
-						{
-							targetExists = true;
-							break;
-						}
-						break;
-					}
-				}
-			}
-			if(!targetExists)
-			{
-				return ESpellCastProblem::NO_APPROPRIATE_TARGET;
-			}
-		}
-		break;
-	case CSpell::OBSTACLE:
-		break;
-	}
-
-	return ESpellCastProblem::OK;
-}
-
-std::vector<BattleHex> CBattleInfoCallback::battleGetPossibleTargets(PlayerColor player, const CSpell *spell) const
-{
-	std::vector<BattleHex> ret;
-	RETURN_IF_NOT_BATTLE(ret);
-
-	switch(spell->getTargetType())
-	{
-	case CSpell::CREATURE:
-		{
-			const CGHeroInstance * caster = battleGetFightingHero(playerToSide(player)); //TODO
-			const CSpell::TargetInfo ti(spell, caster->getSpellSchoolLevel(spell));
-
-			for(const CStack * stack : battleAliveStacks())
-			{
-				bool immune = ESpellCastProblem::OK != spell->isImmuneByStack(caster, stack);
-				bool casterStack = stack->owner == caster->getOwner();
-
-				if(!immune)
-					switch (spell->positiveness)
-					{
-					case CSpell::POSITIVE:
-						if(casterStack || ti.smart)
-							ret.push_back(stack->position);
-						break;
-
-					case CSpell::NEUTRAL:
-						ret.push_back(stack->position);
-						break;
-
-					case CSpell::NEGATIVE:
-						if(!casterStack || ti.smart)
-							ret.push_back(stack->position);
-						break;
-					}
-			}
-		}
-		break;
-	default:
-		logGlobal->errorStream() << "FIXME " << __FUNCTION__ << " doesn't work with target type " << spell->getTargetType();
-	}
-
-	return ret;
+	return spell->canBeCast(this, mode, caster);
 }
 
 ui32 CBattleInfoCallback::battleGetSpellCost(const CSpell * sp, const CGHeroInstance * caster) const
@@ -1819,71 +1758,12 @@ ESpellCastProblem::ESpellCastProblem CBattleInfoCallback::battleCanCastThisSpell
 		logGlobal->errorStream() << "CBattleInfoCallback::battleCanCastThisSpellHere: no spellcaster.";
 		return ESpellCastProblem::INVALID;
 	}
-	const PlayerColor player = caster->getOwner();
-	ESpellCastProblem::ESpellCastProblem moreGeneralProblem = battleCanCastThisSpell(caster, spell, mode);
-	if(moreGeneralProblem != ESpellCastProblem::OK)
-		return moreGeneralProblem;
 
-	if(spell->getTargetType() == CSpell::OBSTACLE)
-	{
-		if(spell->id == SpellID::REMOVE_OBSTACLE)
-		{
-			if(auto obstacle = battleGetObstacleOnPos(dest, false))
-			{
-				switch (obstacle->obstacleType)
-				{
-				case CObstacleInstance::ABSOLUTE_OBSTACLE: //cliff-like obstacles can't be removed
-				case CObstacleInstance::MOAT:
-					return ESpellCastProblem::NO_APPROPRIATE_TARGET;
-				case CObstacleInstance::USUAL:
-					return ESpellCastProblem::OK;
+	ESpellCastProblem::ESpellCastProblem problem = battleCanCastThisSpell(caster, spell, mode);
+	if(problem != ESpellCastProblem::OK)
+		return problem;
 
-// 				//TODO FIRE_WALL only for ADVANCED level casters
-// 				case CObstacleInstance::FIRE_WALL:
-// 					return
-// 				//TODO other magic obstacles for EXPERT
-// 				case CObstacleInstance::QUICKSAND:
-// 				case CObstacleInstance::LAND_MINE:
-// 				case CObstacleInstance::FORCE_FIELD:
-// 					return
-				default:
-//					assert(0);
-					return ESpellCastProblem::OK;
-				}
-			}
-		}
-		//isObstacleOnTile(dest)
-		//
-		//
-		//TODO
-		//assert that it's remove obstacle
-		//rules whether we can remove spell-created obstacle
-		return ESpellCastProblem::NO_APPROPRIATE_TARGET;
-	}
-
-
-	//get dead stack if we cast resurrection or animate dead
-	const CStack *deadStack = getStackIf([dest](const CStack *s) { return !s->alive() && s->coversPos(dest); });
-	const CStack *aliveStack = getStackIf([dest](const CStack *s) { return s->alive() && s->coversPos(dest);});
-
-
-	if(spell->isRisingSpell())
-	{
-		if(!deadStack && !aliveStack)
-			return ESpellCastProblem::NO_APPROPRIATE_TARGET;
-		if(deadStack && deadStack->owner != player) //you can resurrect only your own stacks //FIXME: it includes alive stacks as well
-			return ESpellCastProblem::NO_APPROPRIATE_TARGET;
-	}
-	else if(spell->getTargetType() == CSpell::CREATURE)
-	{
-		if(!aliveStack)
-			return ESpellCastProblem::NO_APPROPRIATE_TARGET;
-		if(spell->isNegative() && aliveStack->owner == player)
-			return ESpellCastProblem::NO_APPROPRIATE_TARGET;
-		if(spell->isPositive() && aliveStack->owner != player)
-			return ESpellCastProblem::NO_APPROPRIATE_TARGET;
-	}
-	return spell->isImmuneAt(this, caster, mode, dest);
+	return spell->canBeCastAt(this, caster, mode, dest);
 }
 
 const CStack * CBattleInfoCallback::getStackIf(std::function<bool(const CStack*)> pred) const
@@ -1923,7 +1803,7 @@ std::set<const CStack*> CBattleInfoCallback:: batteAdjacentCreatures(const CStac
 	return stacks;
 }
 
-SpellID CBattleInfoCallback::getRandomBeneficialSpell(const CStack * subject) const
+SpellID CBattleInfoCallback::getRandomBeneficialSpell(CRandomGenerator & rand, const CStack * subject) const
 {
 	RETURN_IF_NOT_BATTLE(SpellID::NONE);
 	//This is complete list. No spells from mods.
@@ -1963,7 +1843,10 @@ SpellID CBattleInfoCallback::getRandomBeneficialSpell(const CStack * subject) co
 
 	for(const SpellID spellID : allPossibleSpells)
 	{
-		if (subject->hasBonusFrom(Bonus::SPELL_EFFECT, spellID)
+		std::stringstream cachingStr;
+		cachingStr << "source_" << Bonus::SPELL_EFFECT << "id_" << spellID.num;
+
+		if(subject->hasBonus(Selector::source(Bonus::SPELL_EFFECT, spellID), Selector::all, cachingStr.str())
 			//TODO: this ability has special limitations
 			|| battleCanCastThisSpellHere(subject, spellID.toSpell(), ECastingMode::CREATURE_ACTIVE_CASTING, subject->position) != ESpellCastProblem::OK)
 			continue;
@@ -2045,7 +1928,7 @@ SpellID CBattleInfoCallback::getRandomBeneficialSpell(const CStack * subject) co
 
 	if(!beneficialSpells.empty())
 	{
-		return *RandomGeneratorUtil::nextItem(beneficialSpells, gs->getRandomGenerator());
+		return *RandomGeneratorUtil::nextItem(beneficialSpells, rand);
 	}
 	else
 	{
@@ -2053,7 +1936,7 @@ SpellID CBattleInfoCallback::getRandomBeneficialSpell(const CStack * subject) co
 	}
 }
 
-SpellID CBattleInfoCallback::getRandomCastedSpell(const CStack * caster) const
+SpellID CBattleInfoCallback::getRandomCastedSpell(CRandomGenerator & rand,const CStack * caster) const
 {
 	RETURN_IF_NOT_BATTLE(SpellID::NONE);
 
@@ -2061,12 +1944,12 @@ SpellID CBattleInfoCallback::getRandomCastedSpell(const CStack * caster) const
 	if (!bl->size())
 		return SpellID::NONE;
 	int totalWeight = 0;
-	for(Bonus * b : *bl)
+	for(auto b : *bl)
 	{
 		totalWeight += std::max(b->additionalInfo, 1); //minimal chance to cast is 1
 	}
-	int randomPos = gs->getRandomGenerator().nextInt(totalWeight - 1);
-	for(Bonus * b : *bl)
+	int randomPos = rand.nextInt(totalWeight - 1);
+	for(auto b : *bl)
 	{
 		randomPos -= std::max(b->additionalInfo, 1);
 		if(randomPos < 0)
@@ -2247,7 +2130,16 @@ bool CPlayerBattleCallback::battleCanCastSpell(ESpellCastProblem::ESpellCastProb
 {
 	RETURN_IF_NOT_BATTLE(false);
 	ASSERT_IF_CALLED_WITH_PLAYER
-	auto problem = CBattleInfoCallback::battleCanCastSpell(*player, ECastingMode::HERO_CASTING);
+
+	const CGHeroInstance * hero = battleGetMyHero();
+	if(!hero)
+	{
+		if(outProblem)
+			*outProblem = ESpellCastProblem::NO_HERO_TO_CAST_SPELL;
+		return false;
+	}
+
+	auto problem = CBattleInfoCallback::battleCanCastSpell(hero, ECastingMode::HERO_CASTING);
 	if(outProblem)
 		*outProblem = problem;
 

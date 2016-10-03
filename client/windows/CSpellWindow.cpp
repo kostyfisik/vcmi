@@ -224,7 +224,7 @@ CSpellWindow::CSpellWindow(const SDL_Rect &, const CGHeroInstance * _myHero, CPl
 	currentPage = battleSpellsOnly ? myInt->spellbookSettings.spellbookLastPageBattle : myInt->spellbookSettings.spellbokLastPageAdvmap;
 
 	// spellbook last page battle index is not reset after battle, so this needs to stay here
-	vstd::abetween(currentPage, 0, pagesWithinCurrentTab() - 1);
+	vstd::abetween(currentPage, 0, std::max(0, pagesWithinCurrentTab() - 1));
 
 	computeSpellsPerArea();
 	addUsedEvents(KEYBOARD);
@@ -401,10 +401,10 @@ void CSpellWindow::computeSpellsPerArea()
 	std::vector<SpellID> spellsCurSite;
 	for(const SpellID & spellID : mySpells)
 	{
-		CSpell * s = spellID.toSpell();
+		const CSpell * s = spellID.toSpell();
 
 		if(s->combatSpell ^ !battleSpellsOnly
-			&& ((selectedTab == 4) || (s->school[(ESpellSchool)selectedTab]))
+			&& ((selectedTab == 4) || s->school.at((ESpellSchool)selectedTab))
 			)
 		{
 			spellsCurSite.push_back(spellID);
@@ -618,9 +618,7 @@ void CSpellWindow::SpellArea::clickLeft(tribool down, bool previousState)
 		int spellCost = owner->myInt->cb->getSpellCost(sp, owner->myHero);
 		if(spellCost > owner->myHero->mana) //insufficient mana
 		{
-			char msgBuf[500];
-			sprintf(msgBuf, CGI->generaltexth->allTexts[206].c_str(), spellCost, owner->myHero->mana);
-			owner->myInt->showInfoDialog(std::string(msgBuf));
+			owner->myInt->showInfoDialog(boost::str(boost::format(CGI->generaltexth->allTexts[206]) % spellCost % owner->myHero->mana));
 			return;
 		}
 		//battle spell on adv map or adventure map spell during combat => display infowindow, not cast
@@ -678,7 +676,7 @@ void CSpellWindow::SpellArea::clickLeft(tribool down, bool previousState)
 			case ESpellCastProblem::SPELL_LEVEL_LIMIT_EXCEEDED:
 				{
 					//Recanter's Cloak or similar effect. Try to retrieve bonus
-					const Bonus *b = owner->myHero->getBonusLocalFirst(Selector::type(Bonus::BLOCK_MAGIC_ABOVE));
+					const auto b = owner->myHero->getBonusLocalFirst(Selector::type(Bonus::BLOCK_MAGIC_ABOVE));
 					//TODO what about other values and non-artifact sources?
 					if(b && b->val == 2 && b->source == Bonus::ARTIFACT)
 					{
@@ -686,6 +684,10 @@ void CSpellWindow::SpellArea::clickLeft(tribool down, bool previousState)
 						//The %s prevents %s from casting 3rd level or higher spells.
 						owner->myInt->showInfoDialog(boost::str(boost::format(CGI->generaltexth->allTexts[536])
 							% artName % owner->myHero->name));
+					}
+					else if(b && b->source == Bonus::TERRAIN_OVERLAY && b->sid == BFieldType::CURSED_GROUND)
+					{
+						owner->myInt->showInfoDialog(CGI->generaltexth->allTexts[537]);
 					}
 					else
 					{
@@ -702,6 +704,13 @@ void CSpellWindow::SpellArea::clickLeft(tribool down, bool previousState)
 					owner->myInt->showInfoDialog(CGI->generaltexth->allTexts[185]);
 				}
 				break;
+			default:
+				{
+					// General message:
+					std::string text = CGI->generaltexth->allTexts[541], caster = owner->myHero->name;
+					text = boost::str(boost::format(text) % caster);
+					owner->myInt->showInfoDialog(text);
+				}
 			}
 		}
 		else if(sp->isAdventureSpell() && !owner->myInt->battleInt) //adventure spell and not in battle
@@ -895,7 +904,15 @@ void CSpellWindow::SpellArea::showAll(SDL_Surface * to)
 	//printing spell's name
 	printAtMiddleLoc(spell->name, 39, 70, FONT_TINY, firstLineColor, to);
 	//printing lvl
-	printAtMiddleLoc(CGI->generaltexth->allTexts[171 + spell->level], 39, 82, FONT_TINY, secondLineColor, to);
+	if(schoolLevel > 0)
+	{
+		boost::format fmt("%s/%s");
+		fmt % CGI->generaltexth->allTexts[171 + spell->level];
+		fmt % CGI->generaltexth->levels.at(3+(schoolLevel-1));//lines 4-6
+		printAtMiddleLoc(fmt.str(), 39, 82, FONT_TINY, secondLineColor, to);
+	}
+	else
+		printAtMiddleLoc(CGI->generaltexth->allTexts[171 + spell->level], 39, 82, FONT_TINY, secondLineColor, to);
 	//printing  cost
 	std::ostringstream ss;
 	ss << CGI->generaltexth->allTexts[387] << ": " << spellCost;

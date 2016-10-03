@@ -55,9 +55,9 @@ const TBonusListPtr CHeroWithMaybePickedArtifact::getAllBonuses(const CSelector 
 	else
 		bonusesFromPickedUpArtifact = TBonusListPtr(new BonusList);
 
-	for(Bonus *b : *bonusesFromPickedUpArtifact)
+	for(auto b : *bonusesFromPickedUpArtifact)
 		*heroBonuses -= b;
-	for(Bonus *b : *heroBonuses)
+	for(auto b : *heroBonuses)
 		out->push_back(b);
 	return out;
 }
@@ -342,6 +342,12 @@ void CHeroWindow::commanderWindow()
 	else
 		GH.pushInt(new CStackWindow(curHero->commander, false));
 
+}
+
+void CHeroWindow::updateGarrisons()
+{
+	CWindowWithGarrison::updateGarrisons();
+	morale->set(&heroWArt);
 }
 
 void CHeroWindow::showAll(SDL_Surface * to)

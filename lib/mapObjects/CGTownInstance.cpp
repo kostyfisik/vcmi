@@ -83,14 +83,14 @@ CGDwelling::~CGDwelling()
 	vstd::clear_pointer(info);
 }
 
-void CGDwelling::initObj()
+void CGDwelling::initObj(CRandomGenerator & rand)
 {
 	switch(ID)
 	{
 	case Obj::CREATURE_GENERATOR1:
 	case Obj::CREATURE_GENERATOR4:
 		{
-			VLC->objtypeh->getHandlerFor(ID, subID)->configureObject(this, cb->gameState()->getRandomGenerator());
+			VLC->objtypeh->getHandlerFor(ID, subID)->configureObject(this, rand);
 
 			if (getOwner() != PlayerColor::NEUTRAL)
 				cb->gameState()->players[getOwner()].dwellings.push_back (this);
@@ -216,7 +216,7 @@ void CGDwelling::onHeroVisit( const CGHeroInstance * h ) const
 	cb->showBlockingDialog(&bd);
 }
 
-void CGDwelling::newTurn() const
+void CGDwelling::newTurn(CRandomGenerator & rand) const
 {
 	if(cb->getDate(Date::DAY_OF_WEEK) != 1) //not first day of week
 		return;
@@ -227,7 +227,7 @@ void CGDwelling::newTurn() const
 
 	if(ID == Obj::REFUGEE_CAMP) //if it's a refugee camp, we need to pick an available creature
 	{
-		cb->setObjProperty(id, ObjProperty::AVAILABLE_CREATURE, VLC->creh->pickRandomMonster(cb->gameState()->getRandomGenerator()));
+		cb->setObjProperty(id, ObjProperty::AVAILABLE_CREATURE, VLC->creh->pickRandomMonster(rand));
 	}
 
 	bool change = false;
@@ -536,12 +536,12 @@ GrowthInfo CGTownInstance::getGrowthInfo(int level) const
 
 	//other *-of-legion-like bonuses (%d to growth cumulative with grail)
 	TBonusListPtr bonuses = getBonuses(Selector::type(Bonus::CREATURE_GROWTH).And(Selector::subtype(level)));
-	for(const Bonus *b : *bonuses)
+	for(const std::shared_ptr<Bonus> b : *bonuses)
 		ret.entries.push_back(GrowthInfo::Entry(b->val, b->Description()));
 
 	//statue-of-legion-like bonus: % to base+castle
 	TBonusListPtr bonuses2 = getBonuses(Selector::type(Bonus::CREATURE_GROWTH_PERCENT));
-	for(const Bonus *b : *bonuses2)
+	for(const std::shared_ptr<Bonus> b : *bonuses2)
 		ret.entries.push_back(GrowthInfo::Entry(b->val * (base + castleBonus) / 100, b->Description()));
 
 	if(hasBuilt(BuildingID::GRAIL)) //grail - +50% to ALL (so far added) growth
@@ -684,7 +684,7 @@ std::string CGTownInstance::getObjectName() const
 	return name + ", " + town->faction->name;
 }
 
-void CGTownInstance::initObj()
+void CGTownInstance::initObj(CRandomGenerator & rand)
 ///initialize town structures
 {
 	blockVisit = true;
@@ -707,16 +707,16 @@ void CGTownInstance::initObj()
 
 	switch (subID)
 	{ //add new visitable objects
-		case 0:
+		case ETownType::CASTLE:
 			bonusingBuildings.push_back (new COPWBonus(BuildingID::STABLES, this));
 			break;
-		case 5:
+		case ETownType::DUNGEON:
 			bonusingBuildings.push_back (new COPWBonus(BuildingID::MANA_VORTEX, this));
 			//fallthrough
-		case 2: case 3: case 6:
+		case ETownType::TOWER: case ETownType::INFERNO: case ETownType::STRONGHOLD:
 			bonusingBuildings.push_back (new CTownBonus(BuildingID::SPECIAL_4, this));
 			break;
-		case 7:
+		case ETownType::FORTRESS:
 			bonusingBuildings.push_back (new CTownBonus(BuildingID::SPECIAL_1, this));
 			break;
 	}
@@ -726,12 +726,10 @@ void CGTownInstance::initObj()
 	updateAppearance();
 }
 
-void CGTownInstance::newTurn() const
+void CGTownInstance::newTurn(CRandomGenerator & rand) const
 {
 	if (cb->getDate(Date::DAY_OF_WEEK) == 1) //reset on new week
 	{
-		auto & rand = cb->gameState()->getRandomGenerator();
-
 		//give resources for Rampart, Mystic Pond
 		if (hasBuilt(BuildingID::MYSTIC_POND, ETownType::RAMPART)
 			&& cb->getDate(Date::DAY) != 1 && (tempOwner < PlayerColor::PLAYER_LIMIT))
@@ -1020,10 +1018,10 @@ void CGTownInstance::deserializationFix()
 
 void CGTownInstance::updateMoraleBonusFromArmy()
 {
-	Bonus *b = getExportedBonusList().getFirst(Selector::sourceType(Bonus::ARMY).And(Selector::type(Bonus::MORALE)));
+	auto b = getExportedBonusList().getFirst(Selector::sourceType(Bonus::ARMY).And(Selector::type(Bonus::MORALE)));
 	if(!b)
 	{
-		b = new Bonus(Bonus::PERMANENT, Bonus::MORALE, Bonus::ARMY, 0, -1);
+		b = std::make_shared<Bonus>(Bonus::PERMANENT, Bonus::MORALE, Bonus::ARMY, 0, -1);
 		addNewBonus(b);
 	}
 
@@ -1042,7 +1040,7 @@ void CGTownInstance::recreateBuildingsBonuses()
 
 	BonusList bl;
 	getExportedBonusList().getBonuses(bl, Selector::sourceType(Bonus::TOWN_STRUCTURE));
-	for(Bonus *b : bl)
+	for(auto b : bl)
 		removeBonus(b);
 
 	//tricky! -> checks tavern only if no bratherhood of sword or not a castle
@@ -1112,7 +1110,7 @@ bool CGTownInstance::addBonusIfBuilt(BuildingID building, Bonus::BonusType type,
 			descr << "-";
 		descr << val;
 
-		Bonus *b = new Bonus(Bonus::PERMANENT, type, Bonus::TOWN_STRUCTURE, val, building, descr.str(), subtype);
+		auto b = std::make_shared<Bonus>(Bonus::PERMANENT, type, Bonus::TOWN_STRUCTURE, val, building, descr.str(), subtype);
 		if(prop)
 			b->addPropagator(prop);
 		addNewBonus(b);
@@ -1230,7 +1228,7 @@ bool CGTownInstance::hasBuilt(BuildingID buildingID) const
 	return vstd::contains(builtBuildings, buildingID);
 }
 
-CBuilding::TRequired CGTownInstance::genBuildingRequirements(BuildingID buildID) const
+CBuilding::TRequired CGTownInstance::genBuildingRequirements(BuildingID buildID, bool deep) const
 {
 	const CBuilding * building = town->buildings.at(buildID);
 
@@ -1238,17 +1236,22 @@ CBuilding::TRequired CGTownInstance::genBuildingRequirements(BuildingID buildID)
 	[&](const BuildingID & id) -> CBuilding::TRequired::Variant
 	{
 		const CBuilding * build = town->buildings.at(id);
+		CBuilding::TRequired::OperatorAll requirements;
 
 		if (!hasBuilt(id))
-			return id;
+		{
+			requirements.expressions.push_back(id);
 
-		CBuilding::TRequired::OperatorAll requirements;
+			if (!deep)
+			{
+				return requirements;
+			}
+		}
 
 		if (build->upgrade != BuildingID::NONE)
 			requirements.expressions.push_back(dependTest(build->upgrade));
 
 		requirements.expressions.push_back(build->requirements.morph(dependTest));
-
 		return requirements;
 	};
 

@@ -67,8 +67,8 @@ public:
 	void serializeJson(JsonSerializeFormat & handler);
 
 	//overrides CBonusSystemNode
-	std::string bonusToString(const Bonus *bonus, bool description) const override; // how would bonus description look for this particular type of node
-	std::string bonusToGraphics(const Bonus *bonus) const; //file name of graphics from StackSkills , in future possibly others
+	std::string bonusToString(const std::shared_ptr<Bonus>& bonus, bool description) const override; // how would bonus description look for this particular type of node
+	std::string bonusToGraphics(const std::shared_ptr<Bonus>& bonus) const; //file name of graphics from StackSkills , in future possibly others
 
 	virtual ui64 getPower() const;
 	int getQuantityID() const;
@@ -101,7 +101,7 @@ public:
 	//TODO: what if Commander is not a part of creature set?
 
 	//commander class is determined by its base creature
-	ui8 alive;
+	ui8 alive; //maybe change to bool when breaking save compatibility?
 	ui8 level; //required only to count callbacks
 	std::string name; // each Commander has different name
 	std::vector <ui8> secondarySkills; //ID -> level

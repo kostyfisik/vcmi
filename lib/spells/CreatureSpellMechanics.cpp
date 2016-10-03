@@ -20,9 +20,9 @@ void AcidBreathDamageMechanics::applyBattleEffects(const SpellCastEnvironment * 
 {
 	//todo: this should be effectValue
 	//calculating dmg to display
-	ctx.sc.dmgToDisplay = parameters.effectPower;
+	ctx.setDamageToDisplay(parameters.effectPower);
 
-	for(auto & attackedCre : ctx.attackedCres) //no immunities
+	for(auto & attackedCre : ctx.attackedCres)
 	{
 		BattleStackAttacked bsa;
 		bsa.flags |= BattleStackAttacked::SPELL_EFFECT;
@@ -35,13 +35,35 @@ void AcidBreathDamageMechanics::applyBattleEffects(const SpellCastEnvironment * 
 	}
 }
 
+ESpellCastProblem::ESpellCastProblem AcidBreathDamageMechanics::isImmuneByStack(const ISpellCaster * caster, const CStack * obj) const
+{
+	//just in case
+	if(!obj->alive())
+		return ESpellCastProblem::WRONG_SPELL_TARGET;
+
+	//there should be no immunities by design
+	//but make it a bit configurable
+	//ignore all immunities, except specific absolute immunity
+	{
+		//SPELL_IMMUNITY absolute case
+		std::stringstream cachingStr;
+		cachingStr << "type_" << Bonus::SPELL_IMMUNITY << "subtype_" << owner->id.toEnum() << "addInfo_1";
+		if(obj->hasBonus(Selector::typeSubtypeInfo(Bonus::SPELL_IMMUNITY, owner->id.toEnum(), 1), cachingStr.str()))
+			return ESpellCastProblem::STACK_IMMUNE_TO_SPELL;
+	}
+	return ESpellCastProblem::OK;
+}
+
 ///DeathStareMechanics
 void DeathStareMechanics::applyBattleEffects(const SpellCastEnvironment * env, const BattleSpellCastParameters & parameters, SpellCastContext & ctx) const
 {
 	//calculating dmg to display
-	ctx.sc.dmgToDisplay = parameters.effectPower;
+	si32 damageToDisplay = parameters.effectPower;
+
 	if(!ctx.attackedCres.empty())
-		vstd::amin(ctx.sc.dmgToDisplay, (*ctx.attackedCres.begin())->count); //stack is already reduced after attack
+		vstd::amin(damageToDisplay, (*ctx.attackedCres.begin())->count); //stack is already reduced after attack
+
+	ctx.setDamageToDisplay(damageToDisplay);
 
 	for(auto & attackedCre : ctx.attackedCres)
 	{
@@ -61,26 +83,24 @@ void DispellHelpfulMechanics::applyBattle(BattleInfo * battle, const BattleSpell
 {
 	DefaultSpellMechanics::applyBattle(battle, packet);
 
-	doDispell(battle, packet, Selector::positiveSpellEffects);
+	doDispell(battle, packet, positiveSpellEffects);
 }
 
 ESpellCastProblem::ESpellCastProblem DispellHelpfulMechanics::isImmuneByStack(const ISpellCaster * caster,  const CStack * obj) const
 {
-	TBonusListPtr spellBon = obj->getSpellBonuses();
-	bool hasPositiveSpell = false;
-	for(const Bonus * b : *spellBon)
-	{
-		if(SpellID(b->sid).toSpell()->isPositive())
-		{
-			hasPositiveSpell = true;
-			break;
-		}
-	}
-	if(!hasPositiveSpell)
-	{
+	if(!canDispell(obj, positiveSpellEffects, "DispellHelpfulMechanics::positiveSpellEffects"))
 		return ESpellCastProblem::NO_SPELLS_TO_DISPEL;
-	}
 
 	//use default algorithm only if there is no mechanics-related problem
 	return DefaultSpellMechanics::isImmuneByStack(caster,obj);
+}
+
+bool DispellHelpfulMechanics::positiveSpellEffects(const Bonus *b)
+{
+	if(b->source == Bonus::SPELL_EFFECT)
+	{
+		const CSpell * sp = SpellID(b->sid).toSpell();
+		return sp && sp->isPositive();
+	}
+	return false; //not a spell effect
 }

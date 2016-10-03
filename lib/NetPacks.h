@@ -535,6 +535,20 @@ struct UpdateCastleEvents : public CPackForClient //125
 	}
 };
 
+struct ChangeFormation : public CPackForClient //126
+{
+	ChangeFormation(){type = 126;}
+
+	ObjectInstanceID hid;
+	ui8 formation;
+
+	DLL_LINKAGE void applyGs(CGameState *gs);
+	template <typename Handler> void serialize(Handler &h, const int version)
+	{
+		h & hid & formation;
+	}
+};
+
 struct RemoveObject : public CPackForClient //500
 {
 	RemoveObject(){type = 500;};
@@ -1054,9 +1068,10 @@ struct ChangeObjectVisitors : public CPackForClient // 1003
 {
 	enum VisitMode
 	{
-		VISITOR_ADD,    // mark hero as one that have visited this object
-		VISITOR_REMOVE, // unmark visitor, reversed to ADD
-		VISITOR_CLEAR   // clear all visitors from this object (object reset)
+		VISITOR_ADD,      // mark hero as one that have visited this object
+		VISITOR_ADD_TEAM, // mark team as one that have visited this object
+		VISITOR_REMOVE,   // unmark visitor, reversed to ADD
+		VISITOR_CLEAR     // clear all visitors from this object (object reset)
 	};
 	ui32 mode; // uses VisitMode enum
 	ObjectInstanceID object;
@@ -1076,6 +1091,23 @@ struct ChangeObjectVisitors : public CPackForClient // 1003
 	template <typename Handler> void serialize(Handler &h, const int version)
 	{
 		h & object & hero & mode;
+	}
+};
+
+struct PrepareHeroLevelUp : public CPackForClient//1999
+{
+	DLL_LINKAGE void applyGs(CGameState *gs);
+
+	const CGHeroInstance *hero;
+
+	/// Do not serialize, used by server only
+	std::vector<SecondarySkill> skills;
+
+	PrepareHeroLevelUp(){type = 1999;};
+
+	template <typename Handler> void serialize(Handler &h, const int version)
+	{
+		h & hero;
 	}
 };
 
@@ -1333,10 +1365,12 @@ struct StacksHealedOrResurrected : public CPackForClient //3013
 	bool lifeDrain; //if true, this heal is an effect of life drain
 	bool tentHealing; //if true, than it's healing via First Aid Tent
 	si32 drainedFrom; //if life drain - then stack life was drain from, if tentHealing - stack that is a healer
+	bool cure; //archangel cast also remove negative effects
 
 	template <typename Handler> void serialize(Handler &h, const int version)
 	{
 		h & healedStacks & lifeDrain & tentHealing & drainedFrom;
+		h & cure;
 	}
 };
 
@@ -1492,7 +1526,6 @@ struct BattleSpellCast : public CPackForClient//3009
 	DLL_LINKAGE void applyGs(CGameState *gs);
 	void applyCl(CClient *cl);
 
-	si32 dmgToDisplay; //this amount will be displayed as amount of damage dealt by spell
 	ui8 side; //which hero did cast spell: 0 - attacker, 1 - defender
 	ui32 id; //id of spell
 	ui8 skill; //caster's skill level
@@ -1502,9 +1535,12 @@ struct BattleSpellCast : public CPackForClient//3009
 	std::set<ui32> affectedCres; //ids of creatures affected by this spell, generally used if spell does not set any effect (like dispel or cure)
 	si32 casterStack;// -1 if not cated by creature, >=0 caster stack ID
 	bool castByHero; //if true - spell has been cast by hero, otherwise by a creature
+
+	std::vector<MetaString> battleLog;
 	template <typename Handler> void serialize(Handler &h, const int version)
 	{
-		h & dmgToDisplay & side & id & skill & manaGained & tile & customEffects & affectedCres & casterStack & castByHero;
+		h & side & id & skill & manaGained & tile & customEffects & affectedCres & casterStack & castByHero;
+		h & battleLog;
 	}
 };
 

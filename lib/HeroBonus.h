@@ -13,7 +13,6 @@
  */
 
 class CCreature;
-class CSpell;
 struct Bonus;
 class CBonusSystemNode;
 class ILimiter;
@@ -41,7 +40,6 @@ public:
 
 	CSelector(std::nullptr_t)
 	{}
-	//CSelector(std::function<bool(const Bonus*)> f) : std::function<bool(const Bonus*)>(std::move(f)) {}
 
 	CSelector And(CSelector rhs) const
 	{
@@ -131,7 +129,7 @@ public:
 	BONUS_NAME(SPELL_AFTER_ATTACK) /* subtype - spell id, value - chance %, additional info % 1000 - level, (additional info)/1000 -> [0 - all attacks, 1 - shot only, 2 - melee only*/ \
 	BONUS_NAME(SPELL_BEFORE_ATTACK) /* subtype - spell id, value - chance %, additional info % 1000 - level, (additional info)/1000 -> [0 - all attacks, 1 - shot only, 2 - melee only*/ \
 	BONUS_NAME(SPELL_RESISTANCE_AURA) /*eg. unicorns, value - resistance bonus in % for adjacent creatures*/ \
-	BONUS_NAME(LEVEL_SPELL_IMMUNITY) /*creature is immune to all spell with level below or equal to value of this bonus*/ \
+	BONUS_NAME(LEVEL_SPELL_IMMUNITY) /*creature is immune to all spell with level below or equal to value of this bonus */ \
 	BONUS_NAME(BLOCK_MAGIC_ABOVE) /*blocks casting spells of the level > value */ \
 	BONUS_NAME(BLOCK_ALL_MAGIC) /*blocks casting spells*/ \
 	BONUS_NAME(TWO_HEX_ATTACK_BREATH) /*eg. dragons*/	\
@@ -245,11 +243,11 @@ public:
 	BONUS_VALUE(BASE_NUMBER)\
 	BONUS_VALUE(PERCENT_TO_ALL)\
 	BONUS_VALUE(PERCENT_TO_BASE)\
-	BONUS_VALUE(INDEPENDENT_MAX) /*used for SPELL bonus*/ \
+	BONUS_VALUE(INDEPENDENT_MAX) /*used for SPELL bonus */\
 	BONUS_VALUE(INDEPENDENT_MIN) //used for SECONDARY_SKILL_PREMY bonus
 
 /// Struct for handling bonuses of several types. Can be transferred to any hero
-struct DLL_LINKAGE Bonus
+struct DLL_LINKAGE Bonus : public std::enable_shared_from_this<Bonus>
 {
 	enum { EVERY_TYPE = -1 };
 
@@ -267,7 +265,7 @@ struct DLL_LINKAGE Bonus
 		ONE_WEEK = 8, //at the end of week (bonus lasts till the end of week, thats NOT 7 days
 		N_TURNS = 16, //used during battles, after battle bonus is always removed
 		N_DAYS = 32,
-		UNITL_BEING_ATTACKED = 64,/*removed after attack and counterattacks are performed*/
+		UNTIL_BEING_ATTACKED = 64, /*removed after attack and counterattacks are performed*/
 		UNTIL_ATTACK = 128, /*removed after attack and counterattacks are performed*/
 		STACK_GETS_TURN = 256, /*removed when stack gets its turn - used for defensive stance*/
 		COMMANDER_KILLED = 512
@@ -317,24 +315,13 @@ struct DLL_LINKAGE Bonus
 	Bonus();
 	~Bonus();
 
-// 	//comparison
-// 	bool operator==(const HeroBonus &other)
-// 	{
-// 		return &other == this;
-// 		//TODO: what is best logic for that?
-// 	}
-// 	bool operator<(const HeroBonus &other)
-// 	{
-// 		return &other < this;
-// 		//TODO: what is best logic for that?
-// 	}
-
 	template <typename Handler> void serialize(Handler &h, const int version)
 	{
 		h & duration & type & subtype & source & val & sid & description & additionalInfo & turnsRemain & valType & effectRange & limiter & propagator;
 	}
 
-	static bool compareByAdditionalInfo(const Bonus *a, const Bonus *b)
+	template <typename Ptr>
+	static bool compareByAdditionalInfo(const Ptr& a, const Ptr& b)
 	{
 		return a->additionalInfo < b->additionalInfo;
 	}
@@ -372,34 +359,25 @@ struct DLL_LINKAGE Bonus
 	}
 	static bool UntilBeingAttacked(const Bonus *hb)
 	{
-		return hb->duration & Bonus::UNITL_BEING_ATTACKED;
+		return hb->duration & Bonus::UNTIL_BEING_ATTACKED;
 	}
 	static bool UntilCommanderKilled(const Bonus *hb)
 	{
 		return hb->duration & Bonus::COMMANDER_KILLED;
 	}
-	static bool IsFrom(const Bonus &hb, ui8 source, ui32 id) //if id==0xffffff then id doesn't matter
-	{
-		return hb.source==source && (id==0xffffff  ||  hb.sid==id);
-	}
 	inline bool operator == (const BonusType & cf) const
 	{
 		return type == cf;
-	}
-	inline void ChangeBonusVal (const ui32 newVal)
-	{
-		val = newVal;
 	}
 	inline void operator += (const ui32 Val) //no return
 	{
 		val += Val;
 	}
-	const CSpell * sourceSpell() const;
 
 	std::string Description() const;
 
-	Bonus *addLimiter(TLimiterPtr Limiter); //returns this for convenient chain-calls
-	Bonus *addPropagator(TPropagatorPtr Propagator); //returns this for convenient chain-calls
+	std::shared_ptr<Bonus> addLimiter(TLimiterPtr Limiter); //returns this for convenient chain-calls
+	std::shared_ptr<Bonus> addPropagator(TPropagatorPtr Propagator); //returns this for convenient chain-calls
 };
 
 DLL_LINKAGE std::ostream & operator<<(std::ostream &out, const Bonus &bonus);
@@ -407,9 +385,10 @@ DLL_LINKAGE std::ostream & operator<<(std::ostream &out, const Bonus &bonus);
 
 class DLL_LINKAGE BonusList
 {
-private:
-	typedef std::vector<Bonus*> TInternalContainer;
+public:
+	typedef std::vector<std::shared_ptr<Bonus>> TInternalContainer;
 
+private:
 	TInternalContainer bonuses;
 	bool belongsToTree;
 	void changed();
@@ -427,24 +406,23 @@ public:
 	BonusList& operator=(const BonusList &bonusList);
 
 	// wrapper functions of the STL vector container
-	std::vector<Bonus*>::size_type size() const { return bonuses.size(); }
-	void push_back(Bonus* const &x);
-	std::vector<Bonus*>::iterator erase (const int position);
+	TInternalContainer::size_type size() const { return bonuses.size(); }
+	void push_back(std::shared_ptr<Bonus> x);
+	TInternalContainer::iterator erase (const int position);
 	void clear();
 	bool empty() const { return bonuses.empty(); }
-	void resize(std::vector<Bonus*>::size_type sz, Bonus* c = nullptr );
-	void insert(std::vector<Bonus*>::iterator position, std::vector<Bonus*>::size_type n, Bonus* const &x);
-	Bonus *const &operator[] (std::vector<Bonus*>::size_type n) { return bonuses[n]; }
-	Bonus *const &operator[] (std::vector<Bonus*>::size_type n) const { return bonuses[n]; }
-	Bonus *const &back() { return bonuses.back(); }
-	Bonus *const &front() { return bonuses.front(); }
-	Bonus *const &back() const { return bonuses.back(); }
-	Bonus *const &front() const { return bonuses.front(); }
+	void resize(TInternalContainer::size_type sz, std::shared_ptr<Bonus> c = nullptr );
+	std::shared_ptr<Bonus> &operator[] (TInternalContainer::size_type n) { return bonuses[n]; }
+	const std::shared_ptr<Bonus> &operator[] (TInternalContainer::size_type n) const { return bonuses[n]; }
+	std::shared_ptr<Bonus> &back() { return bonuses.back(); }
+	std::shared_ptr<Bonus> &front() { return bonuses.front(); }
+	const std::shared_ptr<Bonus> &back() const { return bonuses.back(); }
+	const std::shared_ptr<Bonus> &front() const { return bonuses.front(); }
 
 	// There should be no non-const access to provide solid,robust bonus caching
-	std::vector<Bonus*>::const_iterator begin() const { return bonuses.begin(); }
-	std::vector<Bonus*>::const_iterator end() const { return bonuses.end(); }
-	std::vector<Bonus*>::size_type operator-=(Bonus* const &i);
+	TInternalContainer::const_iterator begin() const { return bonuses.begin(); }
+	TInternalContainer::const_iterator end() const { return bonuses.end(); }
+	TInternalContainer::size_type operator-=(std::shared_ptr<Bonus> const &i);
 
 	// BonusList functions
 	int totalValue() const; //subtype -> subtype of bonus, if -1 then any
@@ -454,11 +432,10 @@ public:
 	void getBonuses(BonusList & out, const CSelector &selector) const;
 
 	//special find functions
-	Bonus *getFirst(const CSelector &select);
-	const Bonus *getFirst(const CSelector &select) const;
+	std::shared_ptr<Bonus> getFirst(const CSelector &select);
+	const std::shared_ptr<Bonus> getFirst(const CSelector &select) const;
 	int valOfBonuses(const CSelector &select) const;
 
-	//void limit(const CBonusSystemNode &node); //erases bonuses using limitor
 	void eliminateDuplicates();
 
 	// remove_if implementation for STL vector types
@@ -468,8 +445,8 @@ public:
 		BonusList newList;
 		for (ui32 i = 0; i < bonuses.size(); i++)
 		{
-			Bonus *b = bonuses[i];
-			if (!pred(b))
+			auto b = bonuses[i];
+			if (!pred(b.get()))
 				newList.push_back(b);
 		}
 		bonuses.clear();
@@ -479,10 +456,12 @@ public:
 
 	template <class InputIterator>
 	void insert(const int position, InputIterator first, InputIterator last);
+	void insert(TInternalContainer::iterator position, TInternalContainer::size_type n, std::shared_ptr<Bonus> const &x);
 
-	template <typename Handler> void serialize(Handler &h, const int version)
+	template <typename Handler>
+	void serialize(Handler &h, const int version)
 	{
-		h & static_cast<std::vector<Bonus*>&>(bonuses);
+		h & static_cast<TInternalContainer&>(bonuses);
 	}
 
 	// C++ for range support
@@ -526,7 +505,6 @@ class DLL_LINKAGE IPropagator
 public:
 	virtual ~IPropagator();
 	virtual bool shouldBeAttached(CBonusSystemNode *dest);
-	//virtual CBonusSystemNode *getDestNode(CBonusSystemNode *source, CBonusSystemNode *redParent, CBonusSystemNode *redChild); //called when red relation between parent-childrem is established / removed
 
 	template <typename Handler> void serialize(Handler &h, const int version)
 	{}
@@ -539,7 +517,6 @@ public:
 	CPropagatorNodeType();
 	CPropagatorNodeType(int NodeType);
 	bool shouldBeAttached(CBonusSystemNode *dest) override;
-	//CBonusSystemNode *getDestNode(CBonusSystemNode *source, CBonusSystemNode *redParent, CBonusSystemNode *redChild) override;
 
 	template <typename Handler> void serialize(Handler &h, const int version)
 	{
@@ -549,7 +526,7 @@ public:
 
 struct BonusLimitationContext
 {
-	const Bonus *b;
+	const std::shared_ptr<Bonus> b;
 	const CBonusSystemNode &node;
 	const BonusList &alreadyAccepted;
 };
@@ -576,21 +553,19 @@ public:
 	// * root is node on which call was made (nullptr will be replaced with this)
 	//interface
 	virtual const TBonusListPtr getAllBonuses(const CSelector &selector, const CSelector &limit, const CBonusSystemNode *root = nullptr, const std::string &cachingStr = "") const = 0;
-	int getBonusesCount(const CSelector &selector, const std::string &cachingStr = "") const;
 	int valOfBonuses(const CSelector &selector, const std::string &cachingStr = "") const;
 	bool hasBonus(const CSelector &selector, const std::string &cachingStr = "") const;
+	bool hasBonus(const CSelector &selector, const CSelector &limit, const std::string &cachingStr = "") const;
 	const TBonusListPtr getBonuses(const CSelector &selector, const CSelector &limit, const std::string &cachingStr = "") const;
 	const TBonusListPtr getBonuses(const CSelector &selector, const std::string &cachingStr = "") const;
 
-	const TBonusListPtr getAllBonuses() const;
-	const Bonus *getBonus(const CSelector &selector) const; //returns any bonus visible on node that matches (or nullptr if none matches)
+	const std::shared_ptr<Bonus> getBonus(const CSelector &selector) const; //returns any bonus visible on node that matches (or nullptr if none matches)
 
 	//legacy interface
 	int valOfBonuses(Bonus::BonusType type, const CSelector &selector) const;
 	int valOfBonuses(Bonus::BonusType type, int subtype = -1) const; //subtype -> subtype of bonus, if -1 then anyt;
 	bool hasBonusOfType(Bonus::BonusType type, int subtype = -1) const;//determines if hero has a bonus of given type (and optionally subtype)
 	bool hasBonusFrom(Bonus::BonusSource source, ui32 sourceID) const;
-	int getBonusesCount(Bonus::BonusSource from, int id) const;
 
 	//various hlp functions for non-trivial values
 	ui32 getMinDamage() const; //used for stacks and creatures only
@@ -603,12 +578,9 @@ public:
 	bool isLiving() const; //non-undead, non-non living or alive
 	virtual si32 magicResistance() const;
 	ui32 Speed(int turn = 0, bool useBind = false) const; //get speed of creature with all modificators
-	const Bonus * getEffect(ui16 id, int turn = 0) const; //effect id (SP)
-	ui8 howManyEffectsSet(ui16 id) const; //returns amount of effects with given id set for this stack
 
 	si32 manaLimit() const; //maximum mana value for this hero (basically 10*knowledge)
 	int getPrimSkillLevel(PrimarySkill::PrimarySkill id) const;
-	const TBonusListPtr getSpellBonuses() const;
 };
 
 class DLL_LINKAGE CBonusSystemNode : public IBonusBearer, public boost::noncopyable
@@ -652,7 +624,7 @@ public:
 	TBonusListPtr limitBonuses(const BonusList &allBonuses) const; //same as above, returns out by val for convienence
 	const TBonusListPtr getAllBonuses(const CSelector &selector, const CSelector &limit, const CBonusSystemNode *root = nullptr, const std::string &cachingStr = "") const override;
 	void getParents(TCNodes &out) const;  //retrieves list of parent nodes (nodes to inherit bonuses from),
-	const Bonus *getBonusLocalFirst(const CSelector &selector) const;
+	const std::shared_ptr<Bonus> getBonusLocalFirst(const CSelector &selector) const;
 
 	//non-const interface
 	void getParents(TNodes &out);  //retrieves list of parent nodes (nodes to inherit bonuses from)
@@ -660,35 +632,33 @@ public:
 	void getRedAncestors(TNodes &out);
 	void getRedChildren(TNodes &out);
 	void getRedDescendants(TNodes &out);
-	Bonus *getBonusLocalFirst(const CSelector &selector);
+	std::shared_ptr<Bonus> getBonusLocalFirst(const CSelector &selector);
 
 	void attachTo(CBonusSystemNode *parent);
 	void detachFrom(CBonusSystemNode *parent);
 	void detachFromAll();
-	virtual void addNewBonus(Bonus *b); //b will be deleted with destruction of node
-	void accumulateBonus(Bonus &b); //add value of bonus with same type/subtype or create new
+	virtual void addNewBonus(const std::shared_ptr<Bonus>& b);
+	void accumulateBonus(const std::shared_ptr<Bonus>& b); //add value of bonus with same type/subtype or create new
 
 	void newChildAttached(CBonusSystemNode *child);
 	void childDetached(CBonusSystemNode *child);
-	void propagateBonus(Bonus * b);
-	void unpropagateBonus(Bonus * b);
-	//void addNewBonus(const Bonus &b); //b will copied
-	void removeBonus(Bonus *b);
+	void propagateBonus(std::shared_ptr<Bonus> b);
+	void unpropagateBonus(std::shared_ptr<Bonus> b);
+	void removeBonus(const std::shared_ptr<Bonus>& b);
 	void newRedDescendant(CBonusSystemNode *descendant); //propagation needed
 	void removedRedDescendant(CBonusSystemNode *descendant); //de-propagation needed
-	void battleTurnPassed(); //updates count of remaining turns and removed outdated bonuses
 
 	bool isIndependentNode() const; //node is independent when it has no parents nor children
 	bool actsAsBonusSourceOnly() const;
-	//bool isLimitedOnUs(Bonus *b) const; //if bonus should be removed from list acquired from this node
-
+	///removes bonuses by selector
 	void popBonuses(const CSelector &s);
+	///updates count of remaining turns and removes outdated bonuses by selector
 	void updateBonuses(const CSelector &s);
-	virtual std::string bonusToString(const Bonus *bonus, bool description) const {return "";}; //description or bonus name
+	virtual std::string bonusToString(const std::shared_ptr<Bonus>& bonus, bool description) const {return "";}; //description or bonus name
 	virtual std::string nodeName() const;
 
 	void deserializationFix();
-	void exportBonus(Bonus * b);
+	void exportBonus(std::shared_ptr<Bonus> b);
 	void exportBonuses();
 
 	const BonusList &getBonusList() const;
@@ -717,28 +687,6 @@ namespace NBonus
 	//set of methods that may be safely called with nullptr objs
 	DLL_LINKAGE int valOf(const CBonusSystemNode *obj, Bonus::BonusType type, int subtype = -1); //subtype -> subtype of bonus, if -1 then any
 	DLL_LINKAGE bool hasOfType(const CBonusSystemNode *obj, Bonus::BonusType type, int subtype = -1);//determines if hero has a bonus of given type (and optionally subtype)
-	DLL_LINKAGE int getCount(const CBonusSystemNode *obj, Bonus::BonusSource from, int id);
-}
-
-/// generates HeroBonus from given data
-inline Bonus makeFeatureVal(Bonus::BonusType type, ui8 duration, si16 subtype, si32 value, Bonus::BonusSource source, ui16 turnsRemain = 0, si32 additionalInfo = 0)
-{
-	Bonus sf;
-	sf.type = type;
-	sf.duration = duration;
-	sf.source = source;
-	sf.turnsRemain = turnsRemain;
-	sf.subtype = subtype;
-	sf.val = value;
-	sf.additionalInfo = additionalInfo;
-
-	return sf;
-}
-
-///generates HeroBonus from given data
-inline Bonus * makeFeature(Bonus::BonusType type, ui8 duration, si16 subtype, si32 value, Bonus::BonusSource source, ui16 turnsRemain = 0, si32 additionalInfo = 0)
-{
-	return new Bonus(makeFeatureVal(type, duration, subtype, value, source, turnsRemain, additionalInfo));
 }
 
 template<typename T>
@@ -756,25 +704,6 @@ public:
 	{
 		auto ptr2 = ptr; //We need a COPY because we don't want to reference this (might be outlived by lambda)
 		return [ptr2, valueToCompareAgainst](const Bonus *bonus) {  return bonus->*ptr2 == valueToCompareAgainst; };
-	}
-};
-
-template<typename T>
-class CSelectFieldAny //allows to ignore value of certain field, that is to accept any value
-{
-	T Bonus::*ptr;
-public:
-	CSelectFieldAny(T Bonus::*Ptr)
-		: ptr(Ptr)
-	{
-	}
-	bool operator()(const Bonus *bonus) const
-	{
-		return true;
-	}
-	CSelectFieldAny& operator()()
-	{
-		return *this;
 	}
 };
 
@@ -970,8 +899,6 @@ public:
 	}
 };
 
-const CCreature *retrieveCreature(const CBonusSystemNode *node);
-
 namespace Selector
 {
 	extern DLL_LINKAGE CSelectFieldEqual<Bonus::BonusType> type;
@@ -981,16 +908,26 @@ namespace Selector
 	extern DLL_LINKAGE CSelectFieldEqual<Bonus::LimitEffect> effectRange;
 	extern DLL_LINKAGE CWillLastTurns turns;
 	extern DLL_LINKAGE CWillLastDays days;
-	extern DLL_LINKAGE CSelectFieldAny<Bonus::LimitEffect> anyRange;
 
 	CSelector DLL_LINKAGE typeSubtype(Bonus::BonusType Type, TBonusSubtype Subtype);
 	CSelector DLL_LINKAGE typeSubtypeInfo(Bonus::BonusType type, TBonusSubtype subtype, si32 info);
 	CSelector DLL_LINKAGE source(Bonus::BonusSource source, ui32 sourceID);
 	CSelector DLL_LINKAGE sourceTypeSel(Bonus::BonusSource source);
 
+	/**
+	 * Selects all bonuses
+	 * Usage example: Selector::all.And(<functor>).And(<functor>)...)
+	 */
+	extern DLL_LINKAGE CSelector all;
+
+	/**
+	 * Selects nothing
+	 * Usage example: Selector::none.Or(<functor>).Or(<functor>)...)
+	 */
+	extern DLL_LINKAGE CSelector none;
+
 	bool DLL_LINKAGE matchesType(const CSelector &sel, Bonus::BonusType type);
 	bool DLL_LINKAGE matchesTypeSubtype(const CSelector &sel, Bonus::BonusType type, TBonusSubtype subtype);
-	bool DLL_LINKAGE positiveSpellEffects(const Bonus *b);
 }
 
 extern DLL_LINKAGE const std::map<std::string, Bonus::BonusType> bonusNameMap;

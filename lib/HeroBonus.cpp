@@ -47,10 +47,11 @@ const std::map<std::string, ui16> bonusDurationMap =
 	BONUS_ITEM(ONE_WEEK)
 	BONUS_ITEM(N_TURNS)
 	BONUS_ITEM(N_DAYS)
-	BONUS_ITEM(UNITL_BEING_ATTACKED)
+	BONUS_ITEM(UNTIL_BEING_ATTACKED)
 	BONUS_ITEM(UNTIL_ATTACK)
 	BONUS_ITEM(STACK_GETS_TURN)
 	BONUS_ITEM(COMMANDER_KILLED)
+	{ "UNITL_BEING_ATTACKED", Bonus::UNTIL_BEING_ATTACKED }//typo, but used in some mods
 };
 
 const std::map<std::string, Bonus::LimitEffect> bonusLimitEffect =
@@ -128,10 +129,8 @@ int BonusList::totalValue() const
 	int indepMin = 0;
 	bool hasIndepMin = false;
 
-	for (auto & elem : bonuses)
+	for (auto& b : bonuses)
 	{
-		Bonus *b = elem;
-
 		switch(b->valType)
 		{
 		case Bonus::BASE_NUMBER:
@@ -179,7 +178,7 @@ int BonusList::totalValue() const
 	if(hasIndepMin && hasIndepMax)
 		assert(indepMin < indepMax);
 
-	const int notIndepBonuses = boost::count_if(bonuses, [](const Bonus *b)
+	const int notIndepBonuses = boost::count_if(bonuses, [](const std::shared_ptr<Bonus>& b)
 	{
 		return b->valType != Bonus::INDEPENDENT_MAX && b->valType != Bonus::INDEPENDENT_MIN;
 	});
@@ -201,24 +200,23 @@ int BonusList::totalValue() const
 
 	return valFirst;
 }
-const Bonus * BonusList::getFirst(const CSelector &selector) const
+
+std::shared_ptr<Bonus> BonusList::getFirst(const CSelector &select)
 {
-	for (auto & elem : bonuses)
+	for (auto & b : bonuses)
 	{
-		const Bonus *b = elem;
-		if(selector(b))
-			return &*b;
+		if(select(b.get()))
+			return b;
 	}
 	return nullptr;
 }
 
-Bonus * BonusList::getFirst(const CSelector &select)
+const std::shared_ptr<Bonus> BonusList::getFirst(const CSelector &selector) const
 {
-	for (auto & elem : bonuses)
+	for (auto & b : bonuses)
 	{
-		Bonus *b = elem;
-		if(select(b))
-			return &*b;
+		if(selector(b.get()))
+			return b;
 	}
 	return nullptr;
 }
@@ -230,19 +228,17 @@ void BonusList::getBonuses(BonusList & out, const CSelector &selector) const
 
 void BonusList::getBonuses(BonusList & out, const CSelector &selector, const CSelector &limit) const
 {
-	for (auto & elem : bonuses)
+	for (auto & b : bonuses)
 	{
-		Bonus *b = elem;
-
 		//add matching bonuses that matches limit predicate or have NO_LIMIT if no given predicate
-		if(selector(b) && ((!limit && b->effectRange == Bonus::NO_LIMIT) || ((bool)limit && limit(b))))
+		if(selector(b.get()) && ((!limit && b->effectRange == Bonus::NO_LIMIT) || ((bool)limit && limit(b.get()))))
 			out.push_back(b);
 	}
 }
 
 void BonusList::getAllBonuses(BonusList &out) const
 {
-	for(Bonus *b : bonuses)
+	for(auto & b : bonuses)
 		out.push_back(b);
 }
 
@@ -255,25 +251,19 @@ int BonusList::valOfBonuses(const CSelector &select) const
 	return ret.totalValue();
 }
 
-// void BonusList::limit(const CBonusSystemNode &node)
-// {
-// 	remove_if(std::bind(&CBonusSystemNode::isLimitedOnUs, std::ref(node), _1));
-// }
-
-
 void BonusList::eliminateDuplicates()
 {
 	sort( bonuses.begin(), bonuses.end() );
 	bonuses.erase( unique( bonuses.begin(), bonuses.end() ), bonuses.end() );
 }
 
-void BonusList::push_back(Bonus* const &x)
+void BonusList::push_back(std::shared_ptr<Bonus> x)
 {
 	bonuses.push_back(x);
 	changed();
 }
 
-std::vector<Bonus*>::iterator BonusList::erase(const int position)
+BonusList::TInternalContainer::iterator BonusList::erase(const int position)
 {
 	changed();
 	return bonuses.erase(bonuses.begin() + position);
@@ -285,7 +275,7 @@ void BonusList::clear()
 	changed();
 }
 
-std::vector<BonusList*>::size_type BonusList::operator-=(Bonus* const &i)
+std::vector<BonusList*>::size_type BonusList::operator-=(std::shared_ptr<Bonus> const &i)
 {
 	auto itr = std::find(bonuses.begin(), bonuses.end(), i);
 	if(itr == bonuses.end())
@@ -295,13 +285,13 @@ std::vector<BonusList*>::size_type BonusList::operator-=(Bonus* const &i)
 	return true;
 }
 
-void BonusList::resize(std::vector<Bonus*>::size_type sz, Bonus* c )
+void BonusList::resize(BonusList::TInternalContainer::size_type sz, std::shared_ptr<Bonus> c )
 {
 	bonuses.resize(sz, c);
 	changed();
 }
 
-void BonusList::insert(std::vector<Bonus*>::iterator position, std::vector<Bonus*>::size_type n, Bonus* const &x)
+void BonusList::insert(BonusList::TInternalContainer::iterator position, BonusList::TInternalContainer::size_type n, std::shared_ptr<Bonus> const &x)
 {
 	bonuses.insert(position, n, x);
 	changed();
@@ -335,6 +325,11 @@ bool IBonusBearer::hasBonus(const CSelector &selector, const std::string &cachin
 	return getBonuses(selector, cachingStr)->size() > 0;
 }
 
+bool IBonusBearer::hasBonus(const CSelector &selector, const CSelector &limit, const std::string &cachingStr /*= ""*/) const
+{
+	return getBonuses(selector, limit, cachingStr)->size() > 0;
+}
+
 bool IBonusBearer::hasBonusOfType(Bonus::BonusType type, int subtype /*= -1*/) const
 {
 	std::stringstream cachingStr;
@@ -345,18 +340,6 @@ bool IBonusBearer::hasBonusOfType(Bonus::BonusType type, int subtype /*= -1*/) c
 		s = s.And(Selector::subtype(subtype));
 
 	return hasBonus(s, cachingStr.str());
-}
-
-int IBonusBearer::getBonusesCount(Bonus::BonusSource from, int id) const
-{
-	std::stringstream cachingStr;
-	cachingStr << "source_" << from << "id_" << id;
-	return getBonusesCount(Selector::source(from, id), cachingStr.str());
-}
-
-int IBonusBearer::getBonusesCount(const CSelector &selector, const std::string &cachingStr /* =""*/) const
-{
-	return getBonuses(selector, cachingStr)->size();
 }
 
 const TBonusListPtr IBonusBearer::getBonuses(const CSelector &selector, const std::string &cachingStr /*= ""*/) const
@@ -481,7 +464,7 @@ ui32 IBonusBearer::Speed( int turn /*= 0*/ , bool useBind /* = false*/) const
 		return 0;
 	}
 	//bind effect check - doesn't influence stack initiative
-	if (useBind && getEffect (SpellID::BIND))
+	if(useBind && hasBonus(Selector::type(Bonus::BIND_EFFECT).And(Selector::turns(turn))))
 	{
 		return 0;
 	}
@@ -498,66 +481,15 @@ bool IBonusBearer::isLiving() const //TODO: theoreticaly there exists "LIVING" b
 					.Or(Selector::type(Bonus::SIEGE_WEAPON)), cachingStr.str());
 }
 
-const TBonusListPtr IBonusBearer::getSpellBonuses() const
+const std::shared_ptr<Bonus> IBonusBearer::getBonus(const CSelector &selector) const
 {
-	std::stringstream cachingStr;
-	cachingStr << "!type_" << Bonus::NONE << "source_" << Bonus::SPELL_EFFECT;
-	CSelector selector = Selector::sourceType(Bonus::SPELL_EFFECT)
-		.And(CSelector([](const Bonus * b)->bool
-		{
-			return b->type != Bonus::NONE;
-		}));
-	return getBonuses(selector, Selector::anyRange(), cachingStr.str());
-}
-
-const Bonus * IBonusBearer::getEffect(ui16 id, int turn /*= 0*/) const
-{
-	//TODO should check only local bonuses?
-	auto bonuses = getAllBonuses();
-	for(const Bonus *it : *bonuses)
-	{
-		if(it->source == Bonus::SPELL_EFFECT && it->sid == id)
-		{
-			if(!turn || it->turnsRemain > turn)
-				return &(*it);
-		}
-	}
-	return nullptr;
-}
-
-ui8 IBonusBearer::howManyEffectsSet(ui16 id) const
-{
-	//TODO should check only local bonuses?
-	ui8 ret = 0;
-
-	auto bonuses = getAllBonuses();
-	for(const Bonus *it : *bonuses)
-	{
-		if(it->source == Bonus::SPELL_EFFECT && it->sid == id) //effect found
-		{
-			++ret;
-		}
-	}
-
-	return ret;
-}
-
-const TBonusListPtr IBonusBearer::getAllBonuses() const
-{
-	auto matchAll= [] (const Bonus *) { return true; };
-	auto matchNone= [] (const Bonus *) { return true; };
-	return getAllBonuses(matchAll, matchNone);
-}
-
-const Bonus * IBonusBearer::getBonus(const CSelector &selector) const
-{
-	auto bonuses = getAllBonuses();
+	auto bonuses = getAllBonuses(Selector::all, Selector::all);
 	return bonuses->getFirst(selector);
 }
 
-Bonus * CBonusSystemNode::getBonusLocalFirst(const CSelector &selector)
+std::shared_ptr<Bonus> CBonusSystemNode::getBonusLocalFirst(const CSelector &selector)
 {
-	Bonus *ret = bonuses.getFirst(selector);
+	auto ret = bonuses.getFirst(selector);
 	if(ret)
 		return ret;
 
@@ -571,7 +503,7 @@ Bonus * CBonusSystemNode::getBonusLocalFirst(const CSelector &selector)
 	return nullptr;
 }
 
-const Bonus * CBonusSystemNode::getBonusLocalFirst( const CSelector &selector ) const
+const std::shared_ptr<Bonus> CBonusSystemNode::getBonusLocalFirst( const CSelector &selector ) const
 {
 	return (const_cast<CBonusSystemNode*>(this))->getBonusLocalFirst(selector);
 }
@@ -688,13 +620,13 @@ const TBonusListPtr CBonusSystemNode::getAllBonusesWithoutCaching(const CSelecto
 		BonusList rootBonuses, limitedRootBonuses;
 		getAllBonusesRec(rootBonuses);
 
-		for(Bonus *b : beforeLimiting)
+		for(auto b : beforeLimiting)
 			rootBonuses.push_back(b);
 
 		rootBonuses.eliminateDuplicates();
 		root->limitBonuses(rootBonuses, limitedRootBonuses);
 
-		for(Bonus *b : beforeLimiting)
+		for(auto b : beforeLimiting)
 			if(vstd::contains(limitedRootBonuses, b))
 				afterLimiting.push_back(b);
 
@@ -746,13 +678,9 @@ CBonusSystemNode::~CBonusSystemNode()
 
 	if(children.size())
 	{
-		logBonus->warnStream() << "Warning: an orphaned child!";
 		while(children.size())
 			children.front()->detachFrom(this);
 	}
-
-	for(Bonus *b : exportedBonuses)
-		delete b;
 }
 
 void CBonusSystemNode::attachTo(CBonusSystemNode *parent)
@@ -786,8 +714,8 @@ void CBonusSystemNode::detachFrom(CBonusSystemNode *parent)
 void CBonusSystemNode::popBonuses(const CSelector &s)
 {
 	BonusList bl;
-	exportedBonuses.getBonuses(bl, s);
-	for(Bonus *b : bl)
+	exportedBonuses.getBonuses(bl, s, Selector::all);
+	for(auto b : bl)
 		removeBonus(b);
 
 	for(CBonusSystemNode *child : children)
@@ -797,8 +725,8 @@ void CBonusSystemNode::popBonuses(const CSelector &s)
 void CBonusSystemNode::updateBonuses(const CSelector &s)
 {
 	BonusList bl;
-	exportedBonuses.getBonuses(bl, s);
-	for(Bonus *b : bl)
+	exportedBonuses.getBonuses(bl, s, Selector::all);
+	for(auto b : bl)
 	{
 		b->turnsRemain--;
 		if(b->turnsRemain <= 0)
@@ -809,37 +737,36 @@ void CBonusSystemNode::updateBonuses(const CSelector &s)
 		child->updateBonuses(s);
 }
 
-void CBonusSystemNode::addNewBonus(Bonus *b)
+void CBonusSystemNode::addNewBonus(const std::shared_ptr<Bonus>& b)
 {
 	//turnsRemain shouldn't be zero for following durations
-	if(Bonus::NTurns(b) || Bonus::NDays(b) || Bonus::OneWeek(b))
+	if(Bonus::NTurns(b.get()) || Bonus::NDays(b.get()) || Bonus::OneWeek(b.get()))
 	{
 		assert(b->turnsRemain);
 	}
 
-	assert(!vstd::contains(exportedBonuses,b));
+	assert(!vstd::contains(exportedBonuses, b));
 	exportedBonuses.push_back(b);
 	exportBonus(b);
 	CBonusSystemNode::treeHasChanged();
 }
 
-void CBonusSystemNode::accumulateBonus(Bonus &b)
+void CBonusSystemNode::accumulateBonus(const std::shared_ptr<Bonus>& b)
 {
-	Bonus *bonus = exportedBonuses.getFirst(Selector::typeSubtype(b.type, b.subtype)); //only local bonuses are interesting //TODO: what about value type?
+	auto bonus = exportedBonuses.getFirst(Selector::typeSubtype(b->type, b->subtype)); //only local bonuses are interesting //TODO: what about value type?
 	if(bonus)
-		bonus->val += b.val;
+		bonus->val += b->val;
 	else
-		addNewBonus(new Bonus(b)); //duplicate needed, original may get destroyed
+		addNewBonus(std::make_shared<Bonus>(*b)); //duplicate needed, original may get destroyed
 }
 
-void CBonusSystemNode::removeBonus(Bonus *b)
+void CBonusSystemNode::removeBonus(const std::shared_ptr<Bonus>& b)
 {
 	exportedBonuses -= b;
 	if(b->propagator)
 		unpropagateBonus(b);
 	else
 		bonuses -= b;
-	vstd::clear_pointer(b);
 	CBonusSystemNode::treeHasChanged();
 }
 
@@ -856,7 +783,7 @@ bool CBonusSystemNode::actsAsBonusSourceOnly() const
 	}
 }
 
-void CBonusSystemNode::propagateBonus(Bonus * b)
+void CBonusSystemNode::propagateBonus(std::shared_ptr<Bonus> b)
 {
 	if(b->propagator->shouldBeAttached(this))
 	{
@@ -868,7 +795,7 @@ void CBonusSystemNode::propagateBonus(Bonus * b)
 		child->propagateBonus(b);
 }
 
-void CBonusSystemNode::unpropagateBonus(Bonus * b)
+void CBonusSystemNode::unpropagateBonus(std::shared_ptr<Bonus> b)
 {
 	if(b->propagator->shouldBeAttached(this))
 	{
@@ -968,7 +895,7 @@ void CBonusSystemNode::getRedChildren(TNodes &out)
 
 void CBonusSystemNode::newRedDescendant(CBonusSystemNode *descendant)
 {
-	for(Bonus *b : exportedBonuses)
+	for(auto b : exportedBonuses)
 		if(b->propagator)
 			descendant->propagateBonus(b);
 
@@ -978,7 +905,7 @@ void CBonusSystemNode::newRedDescendant(CBonusSystemNode *descendant)
 
 void CBonusSystemNode::removedRedDescendant(CBonusSystemNode *descendant)
 {
-	for(Bonus *b : exportedBonuses)
+	for(auto b : exportedBonuses)
 		if(b->propagator)
 			descendant->unpropagateBonus(b);
 
@@ -1000,12 +927,7 @@ void CBonusSystemNode::getRedDescendants(TNodes &out)
 		c->getRedChildren(out);
 }
 
-void CBonusSystemNode::battleTurnPassed()
-{
-	updateBonuses(Bonus::NTurns);
-}
-
-void CBonusSystemNode::exportBonus(Bonus * b)
+void CBonusSystemNode::exportBonus(std::shared_ptr<Bonus> b)
 {
 	if(b->propagator)
 		propagateBonus(b);
@@ -1017,7 +939,7 @@ void CBonusSystemNode::exportBonus(Bonus * b)
 
 void CBonusSystemNode::exportBonuses()
 {
-	for(Bonus *b : exportedBonuses)
+	for(auto b : exportedBonuses)
 		exportBonus(b);
 }
 
@@ -1073,7 +995,7 @@ void CBonusSystemNode::limitBonuses(const BonusList &allBonuses, BonusList &out)
 		int undecidedCount = undecided.size();
 		for(int i = 0; i < undecided.size(); i++)
 		{
-			Bonus *b = undecided[i];
+			auto b = undecided[i];
 			BonusLimitationContext context = {b, *this, out};
 			int decision = b->limiter ? b->limiter->limit(context) : ILimiter::ACCEPT; //bonuses without limiters will be accepted by default
 			if(decision == ILimiter::DISCARD)
@@ -1120,20 +1042,6 @@ bool NBonus::hasOfType(const CBonusSystemNode *obj, Bonus::BonusType type, int s
 	if(obj)
 		return obj->hasBonusOfType(type, subtype);
 	return false;
-}
-
-int NBonus::getCount(const CBonusSystemNode *obj, Bonus::BonusSource from, int id)
-{
-	if(obj)
-		return obj->getBonusesCount(from, id);
-	return 0;
-}
-
-const CSpell * Bonus::sourceSpell() const
-{
-	if(source == SPELL_EFFECT)
-		return SpellID(sid).toSpell();
-	return nullptr;
 }
 
 std::string Bonus::Description() const
@@ -1206,10 +1114,10 @@ Bonus::~Bonus()
 {
 }
 
-Bonus * Bonus::addPropagator(TPropagatorPtr Propagator)
+std::shared_ptr<Bonus> Bonus::addPropagator(TPropagatorPtr Propagator)
 {
 	propagator = Propagator;
-	return this;
+	return this->shared_from_this();
 }
 
 namespace Selector
@@ -1221,7 +1129,6 @@ namespace Selector
 	DLL_LINKAGE CSelectFieldEqual<Bonus::LimitEffect> effectRange(&Bonus::effectRange);
 	DLL_LINKAGE CWillLastTurns turns;
 	DLL_LINKAGE CWillLastDays days;
-	DLL_LINKAGE CSelectFieldAny<Bonus::LimitEffect> anyRange(&Bonus::effectRange);
 
 	CSelector DLL_LINKAGE typeSubtype(Bonus::BonusType Type, TBonusSubtype Subtype)
 	{
@@ -1246,6 +1153,9 @@ namespace Selector
 		return CSelectFieldEqual<Bonus::BonusSource>(&Bonus::source)(source);
 	}
 
+	DLL_LINKAGE CSelector all([](const Bonus * b){return true;});
+	DLL_LINKAGE CSelector none([](const Bonus * b){return false;});
+
 	bool DLL_LINKAGE matchesType(const CSelector &sel, Bonus::BonusType type)
 	{
 		Bonus dummy;
@@ -1259,16 +1169,6 @@ namespace Selector
 		dummy.type = type;
 		dummy.subtype = subtype;
 		return sel(&dummy);
-	}
-
-	bool DLL_LINKAGE positiveSpellEffects(const Bonus *b)
-	{
-		if(b->source == Bonus::SPELL_EFFECT)
-		{
-			CSpell *sp = SpellID(b->sid).toSpell();
-			return sp->isPositive();
-		}
-		return false; //not a spell effect
 	}
 }
 
@@ -1314,7 +1214,7 @@ DLL_LINKAGE std::ostream & operator<<(std::ostream &out, const BonusList &bonusL
 {
 	for (ui32 i = 0; i < bonusList.size(); i++)
 	{
-		Bonus *b = bonusList[i];
+		auto b = bonusList[i];
 		out << "Bonus " << i << "\n" << *b << std::endl;
 	}
 	return out;
@@ -1341,7 +1241,7 @@ DLL_LINKAGE std::ostream & operator<<(std::ostream &out, const Bonus &bonus)
 	return out;
 }
 
-Bonus * Bonus::addLimiter(TLimiterPtr Limiter)
+std::shared_ptr<Bonus> Bonus::addLimiter(TLimiterPtr Limiter)
 {
 	if (limiter)
 	{
@@ -1361,7 +1261,7 @@ Bonus * Bonus::addLimiter(TLimiterPtr Limiter)
 	{
 		limiter = Limiter;
 	}
-	return this;
+	return this->shared_from_this();
 }
 
 ILimiter::~ILimiter()
@@ -1427,20 +1327,10 @@ IPropagator::~IPropagator()
 
 }
 
-// CBonusSystemNode * IPropagator::getDestNode(CBonusSystemNode *source, CBonusSystemNode *redParent, CBonusSystemNode *redChild)
-// {
-// 	return source;
-// }
-
 bool IPropagator::shouldBeAttached(CBonusSystemNode *dest)
 {
 	return false;
 }
-
-// CBonusSystemNode * CPropagatorNodeType::getDestNode(CBonusSystemNode *source, CBonusSystemNode *redParent, CBonusSystemNode *redChild)
-// {
-// 	return nullptr;
-// }
 
 CPropagatorNodeType::CPropagatorNodeType()
 {
@@ -1560,14 +1450,6 @@ StackOwnerLimiter::StackOwnerLimiter(PlayerColor Owner)
 	: owner(Owner)
 {
 }
-// int Bonus::limit(const BonusLimitationContext &context) const
-//  	1162	{
-//  	1163	        if (limiter)
-//  	1164	                return limiter->callNext(context);
-//  	1165	        else
-//  	1166	                return ILimiter::ACCEPT; //accept if there's no limiter
-//  	1167	}
- 	//1168
 
 int LimiterList::limit( const BonusLimitationContext &context ) const
 {

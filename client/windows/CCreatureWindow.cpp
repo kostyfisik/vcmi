@@ -324,14 +324,14 @@ void CStackWindow::CWindowSection::createActiveSpells()
 	for(si32 effect : spells)
 	{
 		const CSpell * sp = CGI->spellh->objects[effect];
-		
+
 		std::string spellText;
-		
+
 		//not all effects have graphics (for eg. Acid Breath)
 		//for modded spells iconEffect is added to SpellInt.def
-		const bool hasGraphics = (effect < SpellID::THUNDERBOLT) || (effect >= SpellID::AFTER_LAST); 
-		
-		if (hasGraphics) 
+		const bool hasGraphics = (effect < SpellID::THUNDERBOLT) || (effect >= SpellID::AFTER_LAST);
+
+		if (hasGraphics)
 		{
 			spellText = CGI->generaltexth->allTexts[610]; //"%s, duration: %d rounds."
 			boost::replace_first (spellText, "%s", sp->name);
@@ -447,7 +447,7 @@ CIntObject * CStackWindow::createSkillEntry(int index)
 	{
 		if (index == 0 && skillID >= 100)
 		{
-			const Bonus *bonus = CGI->creh->skillRequirements[skillID-100].first;
+			const auto bonus = CGI->creh->skillRequirements[skillID-100].first;
 			const CStackInstance *stack = info->commander;
 			CClickableObject * icon = new CClickableObject(new CPicture(stack->bonusToGraphics(bonus)), []{});
 			icon->callback = [=]
@@ -580,14 +580,17 @@ void CStackWindow::CWindowSection::createButtonPanel()
 				{
 					resComps.push_back(new CComponent(CComponent::resource, i->resType, i->resVal));
 				}
-				LOCPLINT->showYesNoDialog(CGI->generaltexth->allTexts[207], onUpgrade, nullptr, true, resComps);
+
+				if(LOCPLINT->cb->getResourceAmount().canAfford(totalCost))
+				{
+					LOCPLINT->showYesNoDialog(CGI->generaltexth->allTexts[207], onUpgrade, nullptr, true, resComps);
+				}
+				else
+					LOCPLINT->showInfoDialog(CGI->generaltexth->allTexts[314], resComps);
 			};
 			auto upgradeBtn = new CButton(Point(221 + i * 40, 5), "stackWindow/upgradeButton", CGI->generaltexth->zelp[446], onClick, SDLK_1);
 
 			upgradeBtn->addOverlay(new CAnimImage("CPRSMALL", VLC->creh->creatures[upgradeInfo.info.newID[i]]->iconIndex));
-
-			if (!LOCPLINT->cb->getResourceAmount().canAfford(totalCost))
-				upgradeBtn->block(true);
 		}
 	}
 
@@ -748,19 +751,18 @@ void CStackWindow::initSections()
 void CStackWindow::initBonusesList()
 {
 	BonusList output, input;
-	input = *(info->stackNode->getBonuses(CSelector(Bonus::Permanent).And(Selector::anyRange())));
+	input = *(info->stackNode->getBonuses(CSelector(Bonus::Permanent), Selector::all));
 
 	while (!input.empty())
 	{
-		Bonus * b = input.front();
-
-		output.push_back(new Bonus(*b));
+		auto b = input.front();
+		output.push_back(std::make_shared<Bonus>(*b));
 		output.back()->val = input.valOfBonuses(Selector::typeSubtype(b->type, b->subtype)); //merge multiple bonuses into one
 		input.remove_if (Selector::typeSubtype(b->type, b->subtype)); //remove used bonuses
 	}
 
 	BonusInfo bonusInfo;
-	for(Bonus* b : output)
+	for(auto b : output)
 	{
 		bonusInfo.name = info->stackNode->bonusToString(b, false);
 		bonusInfo.description = info->stackNode->bonusToString(b, true);
@@ -778,12 +780,12 @@ void CStackWindow::initBonusesList()
 	if (magicResistance)
 	{
 		BonusInfo bonusInfo;
-		Bonus b;
-		b.type = Bonus::MAGIC_RESISTANCE;
+		auto b = std::make_shared<Bonus>();
+		b->type = Bonus::MAGIC_RESISTANCE;
 
-		bonusInfo.name = VLC->getBth()->bonusToString(&b, info->stackNode, false);
-		bonusInfo.description = VLC->getBth()->bonusToString(&b, info->stackNode, true);
-		bonusInfo.imagePath = info->stackNode->bonusToGraphics(&b);
+		bonusInfo.name = VLC->getBth()->bonusToString(b, info->stackNode, false);
+		bonusInfo.description = VLC->getBth()->bonusToString(b, info->stackNode, true);
+		bonusInfo.imagePath = info->stackNode->bonusToGraphics(b);
 		activeBonuses.push_back(bonusInfo);
 	}
 }
@@ -838,7 +840,7 @@ CStackWindow::CStackWindow(const CStackInstance * stack, bool popup):
 	info->creature = stack->type;
 	info->creatureCount = stack->count;
 	info->popupWindow = popup;
-	info->owner = dynamic_cast<const CGHeroInstance *> (stack->armyObj);	
+	info->owner = dynamic_cast<const CGHeroInstance *> (stack->armyObj);
 	init();
 }
 
@@ -868,7 +870,7 @@ CStackWindow::CStackWindow(const CCommanderInstance * commander, bool popup):
 	info->commander = commander;
 	info->creatureCount = 1;
 	info->popupWindow = popup;
-	info->owner = dynamic_cast<const CGHeroInstance *> (commander->armyObj);	
+	info->owner = dynamic_cast<const CGHeroInstance *> (commander->armyObj);
 	init();
 }
 
@@ -883,7 +885,7 @@ CStackWindow::CStackWindow(const CCommanderInstance * commander, std::vector<ui3
 	info->levelupInfo = StackWindowInfo::CommanderLevelInfo();
 	info->levelupInfo->skills = skills;
 	info->levelupInfo->callback = callback;
-	info->owner = dynamic_cast<const CGHeroInstance *> (commander->armyObj);		
+	info->owner = dynamic_cast<const CGHeroInstance *> (commander->armyObj);
 	init();
 }
 

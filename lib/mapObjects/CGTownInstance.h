@@ -76,9 +76,9 @@ protected:
 	void serializeJsonOptions(JsonSerializeFormat & handler) override;
 
 private:
-	void initObj() override;
+	void initObj(CRandomGenerator & rand) override;
 	void onHeroVisit(const CGHeroInstance * h) const override;
-	void newTurn() const override;
+	void newTurn(CRandomGenerator & rand) const override;
 	void setPropertyDer(ui8 what, ui32 val) override;
 	void battleFinished(const CGHeroInstance *hero, const BattleResult &result) const override;
 	void blockingDialogAnswered(const CGHeroInstance *hero, ui32 answer) const override;
@@ -258,7 +258,7 @@ public:
 	bool armedGarrison() const; //true if town has creatures in garrison or garrisoned hero
 	int getTownLevel() const;
 
-	CBuilding::TRequired genBuildingRequirements(BuildingID build) const;
+	CBuilding::TRequired genBuildingRequirements(BuildingID build, bool deep = false) const;
 
 	void mergeGarrisonOnSiege() const; // merge garrison into army of visiting hero
 	void removeCapitols (PlayerColor owner) const;
@@ -271,10 +271,10 @@ public:
 	virtual ~CGTownInstance();
 
 	///IObjectInterface overrides
-	void newTurn() const override;
+	void newTurn(CRandomGenerator & rand) const override;
 	void onHeroVisit(const CGHeroInstance * h) const override;
 	void onHeroLeave(const CGHeroInstance * h) const override;
-	void initObj() override;
+	void initObj(CRandomGenerator & rand) override;
 	void battleFinished(const CGHeroInstance *hero, const BattleResult &result) const override;
 	std::string getObjectName() const override;
 protected:

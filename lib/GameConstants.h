@@ -262,6 +262,9 @@ class PlayerColor : public BaseForID<PlayerColor, ui8>
 
 	DLL_LINKAGE bool isValidPlayer() const; //valid means < PLAYER_LIMIT (especially non-neutral)
 
+	DLL_LINKAGE std::string getStr(bool L10n = false) const;
+	DLL_LINKAGE std::string getStrCap(bool L10n = false) const;
+
 	friend class CGameInfoCallback;
 	friend class CNonConstInfoCallback;
 };
@@ -958,7 +961,7 @@ public:
 	ArtifactID(EArtifactID _num = NONE) : num(_num)
 	{}
 
-	DLL_LINKAGE CArtifact * toArtifact() const;
+	DLL_LINKAGE const CArtifact * toArtifact() const;
 
 	ID_LIKE_CLASS_COMMON(ArtifactID, EArtifactID)
 
@@ -1003,7 +1006,7 @@ public:
 	CreatureID(ECreatureID _num = NONE) : num(_num)
 	{}
 
-	DLL_LINKAGE CCreature * toCreature() const;
+	DLL_LINKAGE const CCreature * toCreature() const;
 
 	ID_LIKE_CLASS_COMMON(CreatureID, ECreatureID)
 
@@ -1046,8 +1049,7 @@ public:
 	SpellID(ESpellID _num = NONE) : num(_num)
 	{}
 
-	//TODO: should this be const?
-	DLL_LINKAGE CSpell * toSpell() const;
+	DLL_LINKAGE const CSpell * toSpell() const;
 
 	ID_LIKE_CLASS_COMMON(SpellID, ESpellID)
 

@@ -22,6 +22,7 @@ struct CObstacleInstance;
 class IBonusBearer;
 struct InfoAboutHero;
 class CArmedInstance;
+class CRandomGenerator;
 
 namespace boost
 {class shared_mutex;}
@@ -189,6 +190,7 @@ public:
 	bool battleCanFlee(PlayerColor player) const;
 	bool battleCanSurrender(PlayerColor player) const;
 	ui8 playerToSide(PlayerColor player) const;
+	bool playerHasAccessToHeroInfo(PlayerColor player, const CGHeroInstance * h) const;
 	ui8 battleGetSiegeLevel() const; //returns 0 when there is no siege, 1 if fort, 2 is citadel, 3 is castle
 	bool battleHasHero(ui8 side) const;
 	int battleCastSpells(ui8 side) const; //how many spells has given side cast
@@ -211,7 +213,16 @@ public:
 	TStacks battleAliveStacks(ui8 side) const;
 	const CStack * battleGetStackByID(int ID, bool onlyAlive = true) const; //returns stack info by given ID
 	bool battleIsObstacleVisibleForSide(const CObstacleInstance & coi, BattlePerspective::BattlePerspective side) const;
-	//ESpellCastProblem::ESpellCastProblem battleCanCastSpell(int player, ECastingMode::ECastingMode mode) const; //Checks if player is able to cast spells (at all) at the moment
+
+	///returns player that controls given stack; mind control included
+	PlayerColor battleGetOwner(const CStack * stack) const;
+
+	///returns hero that controls given stack; nullptr if none; mind control included
+	const CGHeroInstance * battleGetOwnerHero(const CStack * stack) const;
+
+	///check that stacks are controlled by same|other player(s) depending on positiveness
+	///mind control included
+	bool battleMatchOwner(const CStack * attacker, const CStack * defender, const boost::logic::tribool positivness = false) const;
 };
 
 struct DLL_LINKAGE BattleAttackInfo
@@ -266,8 +277,8 @@ public:
 	TDmgRange calculateDmgRange(const CStack* attacker, const CStack* defender, bool shooting, ui8 charge, bool lucky, bool unlucky, bool deathBlow, bool ballistaDoubleDmg) const; //charge - number of hexes travelled before attack (for champion's jousting); returns pair <min dmg, max dmg>
 
 	//hextowallpart  //int battleGetWallUnderHex(BattleHex hex) const; //returns part of destructible wall / gate / keep under given hex or -1 if not found
-	std::pair<ui32, ui32> battleEstimateDamage(const BattleAttackInfo &bai, std::pair<ui32, ui32> * retaliationDmg = nullptr) const; //estimates damage dealt by attacker to defender; it may be not precise especially when stack has randomly working bonuses; returns pair <min dmg, max dmg>
-	std::pair<ui32, ui32> battleEstimateDamage(const CStack * attacker, const CStack * defender, std::pair<ui32, ui32> * retaliationDmg = nullptr) const; //estimates damage dealt by attacker to defender; it may be not precise especially when stack has randomly working bonuses; returns pair <min dmg, max dmg>
+	std::pair<ui32, ui32> battleEstimateDamage(CRandomGenerator & rand, const BattleAttackInfo &bai, std::pair<ui32, ui32> * retaliationDmg = nullptr) const; //estimates damage dealt by attacker to defender; it may be not precise especially when stack has randomly working bonuses; returns pair <min dmg, max dmg>
+	std::pair<ui32, ui32> battleEstimateDamage(CRandomGenerator & rand, const CStack * attacker, const CStack * defender, std::pair<ui32, ui32> * retaliationDmg = nullptr) const; //estimates damage dealt by attacker to defender; it may be not precise especially when stack has randomly working bonuses; returns pair <min dmg, max dmg>
 	si8 battleHasDistancePenalty( const CStack * stack, BattleHex destHex ) const;
 	si8 battleHasDistancePenalty(const IBonusBearer *bonusBearer, BattleHex shooterPosition, BattleHex destHex ) const;
 	si8 battleHasWallPenalty(const CStack * stack, BattleHex destHex) const; //checks if given stack has wall penalty
@@ -281,14 +292,13 @@ public:
 	//*** MAGIC
 	si8 battleMaxSpellLevel(ui8 side) const; //calculates minimum spell level possible to be cast on battlefield - takes into account artifacts of both heroes; if no effects are set, 0 is returned
 	ui32 battleGetSpellCost(const CSpell * sp, const CGHeroInstance * caster) const; //returns cost of given spell
-	ESpellCastProblem::ESpellCastProblem battleCanCastSpell(PlayerColor player, ECastingMode::ECastingMode mode) const; //returns true if there are no general issues preventing from casting a spell
+	ESpellCastProblem::ESpellCastProblem battleCanCastSpell(const ISpellCaster * caster, ECastingMode::ECastingMode mode) const; //returns true if there are no general issues preventing from casting a spell
 	ESpellCastProblem::ESpellCastProblem battleCanCastThisSpell(const ISpellCaster * caster, const CSpell * spell, ECastingMode::ECastingMode mode) const; //checks if given player can cast given spell
 	ESpellCastProblem::ESpellCastProblem battleCanCastThisSpellHere(const ISpellCaster * caster, const CSpell * spell, ECastingMode::ECastingMode mode, BattleHex dest) const; //checks if given player can cast given spell at given tile in given mode
-	std::vector<BattleHex> battleGetPossibleTargets(PlayerColor player, const CSpell *spell) const;
 
-	SpellID battleGetRandomStackSpell(const CStack * stack, ERandomSpell mode) const;
-	SpellID getRandomBeneficialSpell(const CStack * subject) const;
-	SpellID getRandomCastedSpell(const CStack * caster) const; //called at the beginning of turn for Faerie Dragon
+	SpellID battleGetRandomStackSpell(CRandomGenerator & rand, const CStack * stack, ERandomSpell mode) const;
+	SpellID getRandomBeneficialSpell(CRandomGenerator & rand, const CStack * subject) const;
+	SpellID getRandomCastedSpell(CRandomGenerator & rand, const CStack * caster) const; //called at the beginning of turn for Faerie Dragon
 
 	const CStack * getStackIf(std::function<bool(const CStack*)> pred) const;
 
