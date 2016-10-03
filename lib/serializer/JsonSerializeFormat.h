@@ -19,6 +19,7 @@ class JsonArraySerializer;
 class IInstanceResolver
 {
 public:
+	virtual ~IInstanceResolver(){};
 	virtual si32 decode(const std::string & identifier) const = 0;
 	virtual std::string encode(si32 identifier) const = 0;
 };
