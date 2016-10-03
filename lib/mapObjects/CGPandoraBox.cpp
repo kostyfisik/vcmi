@@ -67,7 +67,7 @@ void CGPandoraBox::giveContentsUpToExp(const CGHeroInstance *h) const
 			break;
 		}
 	}
-	
+
 	std::vector<std::pair<SecondarySkill, ui8>> unpossessedAbilities; //ability + ability level
 	int abilitiesRequiringSlot = 0;
 
@@ -92,17 +92,17 @@ void CGPandoraBox::giveContentsUpToExp(const CGHeroInstance *h) const
 		//getText(iw,afterBattle,175,h); //wtf?
 		iw.text.addTxt(MetaString::ADVOB_TXT, 175); //%s learns something
 		iw.text.addReplacement(h->name);
-		
+
 		if(expVal)
 			iw.components.push_back(Component(Component::EXPERIENCE,0,expVal,0));
-			
+
 		for(int i=0; i<primskills.size(); i++)
 			if(primskills[i])
 				iw.components.push_back(Component(Component::PRIM_SKILL,i,primskills[i],0));
 
 		for(auto abilityData : unpossessedAbilities)
 			iw.components.push_back(Component(Component::SEC_SKILL, abilityData.first, abilityData.second, 0));
-			
+
 		cb->showInfoDialog(&iw);
 
 		//give sec skills
@@ -401,7 +401,7 @@ void CGPandoraBox::serializeJsonOptions(JsonSerializeFormat & handler)
 
 			for(size_t idx = 0; idx < abilities.size(); idx++)
 			{
-				handler.serializeNumericEnum(NSecondarySkill::names[abilities[idx]], abilityLevels[idx], NSecondarySkill::levels);
+				handler.serializeEnum(NSecondarySkill::names[abilities[idx]], abilityLevels[idx], NSecondarySkill::levels);
 			}
 		}
 	}

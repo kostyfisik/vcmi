@@ -354,7 +354,7 @@ void CGObjectInstance::serializeJsonOwner(JsonSerializeFormat & handler)
 {
 	ui8 temp = tempOwner.getNum();
 
-	handler.serializeNumericEnum("owner", temp, PlayerColor::NEUTRAL.getNum(), GameConstants::PLAYER_COLOR_NAMES);
+	handler.serializeEnum("owner", temp, PlayerColor::NEUTRAL.getNum(), GameConstants::PLAYER_COLOR_NAMES);
 
 	if(!handler.saving)
 		tempOwner = PlayerColor(temp);

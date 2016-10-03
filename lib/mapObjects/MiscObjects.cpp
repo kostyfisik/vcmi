@@ -601,7 +601,7 @@ static const std::vector<std::string> CHARACTER_JSON  =
 
 void CGCreature::serializeJsonOptions(JsonSerializeFormat & handler)
 {
-	handler.serializeNumericEnum("character", character, CHARACTER_JSON);
+	handler.serializeEnum("character", character, CHARACTER_JSON);
 
 	if(handler.saving)
 	{

@@ -20,11 +20,6 @@ JsonSerializer::JsonSerializer(const IInstanceResolver * instanceResolver_, Json
 
 }
 
-void JsonSerializer::serializeEnum(const std::string & fieldName, const std::string & trueValue, const std::string & falseValue, bool & value)
-{
-	current->operator[](fieldName).String() = value ? trueValue : falseValue;
-}
-
 void JsonSerializer::serializeInternal(const std::string & fieldName, boost::logic::tribool & value)
 {
 	if(!boost::logic::indeterminate(value))

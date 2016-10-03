@@ -178,14 +178,11 @@ public:
 	///bool <-> Json bool
 	void serializeBool(const std::string & fieldName, bool & value);
 
-	///bool <-> Json bool
+	///tribool <-> Json bool
 	void serializeBool(const std::string & fieldName, boost::logic::tribool & value)
 	{
 		serializeInternal(fieldName, value);
 	};
-
-	///bool <-> Json string enum
-	virtual void serializeEnum(const std::string & fieldName, const std::string & trueValue, const std::string & falseValue, bool & value) = 0;
 
 	/** @brief Restrictive ("anyOf") simple serialization of Logical identifier condition, simple deserialization (allOf=anyOf)
 	 *
@@ -211,20 +208,20 @@ public:
 
 	///si32-convertible enum <-> Json string enum
 	template <typename T>
-	void serializeNumericEnum(const std::string & fieldName, T & value, const std::vector<std::string> & enumMap)
+	void serializeEnum(const std::string & fieldName, T & value, const std::vector<std::string> & enumMap)
 	{
 		doSerializeInternal<T, T, si32>(fieldName, value, boost::none, enumMap);
 	};
 
 	///si32-convertible enum <-> Json string enum
 	template <typename T, typename U>
-	void serializeNumericEnum(const std::string & fieldName, T & value, const U & defaultValue, const std::vector<std::string> & enumMap)
+	void serializeEnum(const std::string & fieldName, T & value, const U & defaultValue, const std::vector<std::string> & enumMap)
 	{
 		doSerializeInternal<T, U, si32>(fieldName, value, defaultValue, enumMap);
 	};
 
 	template <typename T, typename U, typename C>
-	void serializeNumericEnum(const std::string & fieldName, T & value, const U & defaultValue, const C & enumMap)
+	void serializeEnum(const std::string & fieldName, T & value, const U & defaultValue, const C & enumMap)
 	{
 		std::vector<std::string> enumMapCopy;
 

@@ -19,7 +19,6 @@ class JsonDeserializer: public JsonSerializeFormat
 public:
 	JsonDeserializer(const IInstanceResolver * instanceResolver_, JsonNode & root_);
 
-	void serializeEnum(const std::string & fieldName, const std::string & trueValue, const std::string & falseValue, bool & value) override;
 	void serializeLIC(const std::string & fieldName, const TDecoder & decoder, const TEncoder & encoder, const std::vector<bool> & standard, std::vector<bool> & value) override;
 	void serializeLIC(const std::string & fieldName, LIC & value) override;
 	void serializeLIC(const std::string & fieldName, LICSet & value) override;

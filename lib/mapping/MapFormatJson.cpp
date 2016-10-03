@@ -263,7 +263,7 @@ void CMapFormatJson::serializeHeader(JsonSerializeFormat & handler)
 	handler.serializeNumeric("heroLevelLimit", mapHeader->levelLimit, 0);
 
 	//todo: support arbitrary percentage
-	handler.serializeNumericEnum("difficulty", mapHeader->difficulty, HeaderDetail::difficultyMap);
+	handler.serializeEnum("difficulty", mapHeader->difficulty, HeaderDetail::difficultyMap);
 
 	serializePlayerInfo(handler);
 
@@ -299,7 +299,13 @@ void CMapFormatJson::serializePlayerInfo(JsonSerializeFormat & handler)
 
 		serializeAllowedFactions(handler, info.allowedFactions);
 
-		handler.serializeEnum("canPlay", "PlayerOrAI", "AIOnly", info.canHumanPlay);
+		static const std::vector<std::string> canPlayMap =
+		{
+			"AIOnly",
+			"PlayerOrAI"
+		};
+
+		handler.serializeEnum("canPlay", info.canHumanPlay, canPlayMap);
 
 		//saving whole structure only if position is valid
 		if(!handler.saving || info.posOfMainTown.valid())

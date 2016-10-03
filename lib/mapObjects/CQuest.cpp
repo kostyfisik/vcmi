@@ -421,7 +421,7 @@ void CQuest::serializeJson(JsonSerializeFormat & handler, const std::string & fi
 		"None", "Level", "PrimaryStat", "KillHero", "KillCreature", "Artifact", "Army", "Resources", "Hero", "Player"
 	};
 
-	handler.serializeNumericEnum("missionType", missionType, Emission::MISSION_NONE, MISSION_TYPE_JSON);
+	handler.serializeEnum("missionType", missionType, Emission::MISSION_NONE, MISSION_TYPE_JSON);
 	handler.serializeNumeric<si32>("timeLimit", lastDay, -1);
 
 	switch (missionType)
@@ -472,7 +472,7 @@ void CQuest::serializeJson(JsonSerializeFormat & handler, const std::string & fi
 		handler.serializeId<ui32>("hero", m13489val, 0, &CHeroHandler::decodeHero, &CHeroHandler::encodeHero);
 		break;
 	case MISSION_PLAYER:
-		handler.serializeNumericEnum("player",  m13489val, PlayerColor::CANNOT_DETERMINE.getNum(), GameConstants::PLAYER_COLOR_NAMES);
+		handler.serializeEnum("player",  m13489val, PlayerColor::CANNOT_DETERMINE.getNum(), GameConstants::PLAYER_COLOR_NAMES);
 		break;
 	default:
 		logGlobal->error("Invalid quest mission type");

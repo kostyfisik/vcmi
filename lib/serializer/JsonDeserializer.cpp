@@ -20,13 +20,6 @@ JsonDeserializer::JsonDeserializer(const IInstanceResolver * instanceResolver_, 
 
 }
 
-void JsonDeserializer::serializeEnum(const std::string & fieldName, const std::string & trueValue, const std::string & falseValue, bool & value)
-{
-	const JsonNode & tmp = current->operator[](fieldName);
-
-	value = tmp.String() == trueValue;
-}
-
 void JsonDeserializer::serializeInternal(const std::string & fieldName, boost::logic::tribool & value)
 {
 	const JsonNode & data = current->operator[](fieldName);
