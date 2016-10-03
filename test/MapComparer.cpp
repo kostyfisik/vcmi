@@ -344,7 +344,7 @@ void JsonMapComparer::checkEqualFloat(const double & actual, const double & expe
 {
 	if(std::abs(actual - expected) > 1e-6)
 	{
-		check(false, boost::str(boost::format("'%d' != '%d'") % actual % expected));
+		check(false, boost::str(boost::format("'%d' != '%d' (diff %d)") % actual % expected % (expected - actual)));
 	}
 }
 
