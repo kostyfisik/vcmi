@@ -36,7 +36,7 @@ void Res::ResourceSet::serializeJson(JsonSerializeFormat & handler, const std::s
 
 	//TODO: add proper support for mithril to map format
 	for(int idx = 0; idx < GameConstants::RESOURCE_QUANTITY - 1; idx ++)
-		handler.serializeNumeric(GameConstants::RESOURCE_NAMES[idx], this->operator[](idx), 0);
+		handler.serializeInt(GameConstants::RESOURCE_NAMES[idx], this->operator[](idx), 0);
 }
 
 bool Res::ResourceSet::nonZero() const

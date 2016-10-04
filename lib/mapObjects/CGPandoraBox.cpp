@@ -371,10 +371,10 @@ void CGPandoraBox::serializeJsonOptions(JsonSerializeFormat & handler)
 	CCreatureSet::serializeJson(handler, "guards", 7);
 	handler.serializeString("guardMessage", message);
 
-	handler.serializeNumeric("experience", gainedExp, 0);
-	handler.serializeNumeric("mana", manaDiff, 0);
-	handler.serializeNumeric("morale", moraleDiff, 0);
-	handler.serializeNumeric("luck", luckDiff, 0);
+	handler.serializeInt("experience", gainedExp, 0);
+	handler.serializeInt("mana", manaDiff, 0);
+	handler.serializeInt("morale", moraleDiff, 0);
+	handler.serializeInt("luck", luckDiff, 0);
 
 	resources.serializeJson(handler, "resources");
 
@@ -384,7 +384,7 @@ void CGPandoraBox::serializeJsonOptions(JsonSerializeFormat & handler)
 
 		auto s = handler.enterStruct("primarySkills");
 		for(int idx = 0; idx < primskills.size(); idx ++)
-			handler.serializeNumeric(PrimarySkill::names[idx], primskills[idx], 0);
+			handler.serializeInt(PrimarySkill::names[idx], primskills[idx], 0);
 
 	}
 	if(handler.saving)

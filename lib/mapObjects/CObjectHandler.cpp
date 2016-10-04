@@ -328,9 +328,9 @@ void CGObjectInstance::serializeJson(JsonSerializeFormat & handler)
 		handler.serializeString("type", typeName);
 		handler.serializeString("subtype", subTypeName);
 
-		handler.serializeNumeric("x", pos.x);
-		handler.serializeNumeric("y", pos.y);
-		handler.serializeNumeric("l", pos.z);
+		handler.serializeInt("x", pos.x);
+		handler.serializeInt("y", pos.y);
+		handler.serializeInt("l", pos.z);
 		appearance.writeJson(handler.getCurrent()["template"], false);
 	}
 

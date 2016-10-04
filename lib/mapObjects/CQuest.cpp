@@ -422,14 +422,14 @@ void CQuest::serializeJson(JsonSerializeFormat & handler, const std::string & fi
 	};
 
 	handler.serializeEnum("missionType", missionType, Emission::MISSION_NONE, MISSION_TYPE_JSON);
-	handler.serializeNumeric<si32>("timeLimit", lastDay, -1);
+	handler.serializeInt("timeLimit", lastDay, -1);
 
 	switch (missionType)
 	{
 	case MISSION_NONE:
 		break;
 	case MISSION_LEVEL:
-		handler.serializeNumeric("heroLevel", m13489val, -1);
+		handler.serializeInt("heroLevel", m13489val, -1);
 		break;
 	case MISSION_PRIMARY_STAT:
 		{
@@ -438,7 +438,7 @@ void CQuest::serializeJson(JsonSerializeFormat & handler, const std::string & fi
 				m2stats.resize(GameConstants::PRIMARY_SKILLS);
 
 			for(int i = 0; i < GameConstants::PRIMARY_SKILLS; ++i)
-				handler.serializeNumeric<ui32>(PrimarySkill::names[i], m2stats[i], 0);
+				handler.serializeInt(PrimarySkill::names[i], m2stats[i], 0);
 		}
 		break;
 	case MISSION_KILL_HERO:
@@ -464,7 +464,7 @@ void CQuest::serializeJson(JsonSerializeFormat & handler, const std::string & fi
 
 			for(size_t idx = 0; idx < (GameConstants::RESOURCE_QUANTITY - 1); idx++)
 			{
-				handler.serializeNumeric(GameConstants::RESOURCE_NAMES[idx], m7resources[idx], 0);
+				handler.serializeInt(GameConstants::RESOURCE_NAMES[idx], m7resources[idx], 0);
 			}
         }
 		break;
@@ -931,7 +931,7 @@ void CGSeerHut::serializeJsonOptions(JsonSerializeFormat & handler)
 		if(rewardType != NOTHING)
 		{
 			fullIdentifier = CModHandler::makeFullIdentifier(scope, metaTypeName, identifier);
-			handler.serializeNumeric(fullIdentifier, amount);
+			handler.serializeInt(fullIdentifier, amount);
 		}
 	}
 	else
@@ -1004,7 +1004,7 @@ void CGSeerHut::serializeJsonOptions(JsonSerializeFormat & handler)
 				return;
 			}
 		}
-		handler.serializeNumeric(fullIdentifier, rVal);
+		handler.serializeInt(fullIdentifier, rVal);
 	}
 }
 

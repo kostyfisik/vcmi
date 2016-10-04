@@ -41,6 +41,12 @@ void JsonSerializer::serializeInternal(const std::string & fieldName, double & v
 		current->operator[](fieldName).Float() = value;
 }
 
+void JsonSerializer::serializeInternal(const std::string & fieldName, si64 & value, const boost::optional<si64> & defaultValue)
+{
+	if(!defaultValue || defaultValue.get() != value)
+		current->operator[](fieldName).Integer() = value;
+}
+
 void JsonSerializer::serializeInternal(const std::string & fieldName, si32 & value, const boost::optional<si32> & defaultValue, const std::vector<std::string> & enumMap)
 {
 	if(!defaultValue || defaultValue.get() != value)

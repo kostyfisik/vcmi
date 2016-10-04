@@ -608,13 +608,13 @@ void CGCreature::serializeJsonOptions(JsonSerializeFormat & handler)
 		if(hasStackAtSlot(SlotID(0)))
 		{
 			si32 amount = getStack(SlotID(0)).count;
-			handler.serializeNumeric("amount", amount, 0);
+			handler.serializeInt("amount", amount, 0);
 		}
 	}
 	else
 	{
 		si32 amount = 0;
-		handler.serializeNumeric("amount", amount);
+		handler.serializeInt("amount", amount);
 		auto  hlp = new CStackInstance();
 		hlp->count = amount;
 		//type will be set during initialization
@@ -916,7 +916,7 @@ void CGResource::blockingDialogAnswered(const CGHeroInstance *hero, ui32 answer)
 void CGResource::serializeJsonOptions(JsonSerializeFormat & handler)
 {
 	CCreatureSet::serializeJson(handler, "guards", 7);
-	handler.serializeNumeric("amount", amount, 0);
+	handler.serializeInt("amount", amount, 0);
 	handler.serializeString("guardMessage", message);
 }
 

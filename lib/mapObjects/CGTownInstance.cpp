@@ -54,8 +54,8 @@ void CCreGenAsCastleInfo::serializeJson(JsonSerializeFormat & handler)
 
 void CCreGenLeveledInfo::serializeJson(JsonSerializeFormat & handler)
 {
-	handler.serializeNumeric("minLevel", minLevel, ui8(1));
-	handler.serializeNumeric("maxLevel", maxLevel, ui8(7));
+	handler.serializeInt("minLevel", minLevel, ui8(1));
+	handler.serializeInt("maxLevel", maxLevel, ui8(7));
 
 	if(!handler.saving)
 	{

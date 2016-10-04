@@ -70,6 +70,16 @@ void JsonDeserializer::serializeInternal(const std::string & fieldName, double &
 		value = data.Float();
 }
 
+void JsonDeserializer::serializeInternal(const std::string & fieldName, si64 & value, const boost::optional<si64> & defaultValue)
+{
+	const JsonNode & data = current->operator[](fieldName);
+
+	if(!data.isNumber())
+		value = defaultValue ? defaultValue.get() : 0;//todo: report error on not null?
+	else
+		value = data.Integer();
+}
+
 void JsonDeserializer::serializeInternal(const std::string & fieldName, si32 & value, const boost::optional<si32> & defaultValue, const std::vector<std::string> & enumMap)
 {
 	const std::string & valueName = current->operator[](fieldName).String();

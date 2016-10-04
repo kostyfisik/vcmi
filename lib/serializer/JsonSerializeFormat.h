@@ -233,16 +233,30 @@ public:
 
 	///Anything double-convertible <-> Json double
 	template <typename T>
-	void serializeNumeric(const std::string & fieldName, T & value)
+	void serializeFloat(const std::string & fieldName, T & value)
 	{
 		doSerializeInternal<T, T, double>(fieldName, value, boost::none);
 	};
 
 	///Anything double-convertible <-> Json double
 	template <typename T, typename U>
-	void serializeNumeric(const std::string & fieldName, T & value, const U & defaultValue)
+	void serializeFloat(const std::string & fieldName, T & value, const U & defaultValue)
 	{
 		doSerializeInternal<T, U, double>(fieldName, value, defaultValue);
+	};
+
+	///Anything int64-convertible <-> Json integer
+	template <typename T>
+	void serializeInt(const std::string & fieldName, T & value)
+	{
+		doSerializeInternal<T, T, si64>(fieldName, value, boost::none);
+	};
+
+	///Anything int64-convertible <-> Json integer
+	template <typename T, typename U>
+	void serializeInt(const std::string & fieldName, T & value, const U & defaultValue)
+	{
+		doSerializeInternal<T, U, si64>(fieldName, value, defaultValue);
 	};
 
 	///si32-convertible identifier <-> Json string
@@ -372,6 +386,9 @@ protected:
 
 	///Numeric <-> Json double
 	virtual void serializeInternal(const std::string & fieldName, double & value, const boost::optional<double> & defaultValue) = 0;
+
+	///Numeric <-> Json integer
+	virtual void serializeInternal(const std::string & fieldName, si64 & value, const boost::optional<si64> & defaultValue) = 0;
 
 	///Enum/Numeric <-> Json string enum
 	virtual void serializeInternal(const std::string & fieldName, si32 & value, const boost::optional<si32> & defaultValue, const std::vector<std::string> & enumMap) = 0;

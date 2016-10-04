@@ -518,7 +518,7 @@ void CCreatureSet::serializeJson(JsonSerializeFormat & handler, const std::strin
 
 			TQuantity amount = 0;
 
-			handler.serializeNumeric("amount", amount);
+			handler.serializeInt("amount", amount);
 
 			if(amount > 0)
 			{
@@ -769,7 +769,7 @@ void CStackInstance::serializeJson(JsonSerializeFormat & handler)
 
 			boost::logic::tribool upgraded = (idRand % 2) > 0;
 
-			handler.serializeNumeric("level", level, 0);
+			handler.serializeInt("level", level, 0);
 			handler.serializeBool("upgraded", upgraded);
 		}
 	}
@@ -781,7 +781,7 @@ void CStackInstance::serializeJson(JsonSerializeFormat & handler)
 			int level = 0;
 			bool upgraded = false;
 
-			handler.serializeNumeric("level", level, 0);
+			handler.serializeInt("level", level, 0);
 			handler.serializeBool("upgraded", upgraded);
 
 			idRand = level * 2 + (int)(bool)upgraded;
@@ -888,7 +888,7 @@ void CStackBasicDescriptor::setType(const CCreature * c)
 
 void CStackBasicDescriptor::serializeJson(JsonSerializeFormat & handler)
 {
-	handler.serializeNumeric("amount", count);
+	handler.serializeInt("amount", count);
 
 	if(handler.saving)
 	{

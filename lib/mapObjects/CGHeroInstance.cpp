@@ -1549,8 +1549,7 @@ void CGHeroInstance::serializeJsonOptions(JsonSerializeFormat & handler)
 		CArtifactSet::serializeJsonArtifacts(handler, "artifacts", nullptr);
 
 	handler.serializeString("biography", biography);
-	//FIXME: JsonNode need int64 support
-	handler.serializeNumeric("experience", exp, 0);
+	handler.serializeInt("experience", exp, 0);
 	handler.serializeString("name", name);
 	handler.serializeBool<ui8>("female", sex, 1, 0, 0xFF);
 
@@ -1563,7 +1562,7 @@ void CGHeroInstance::serializeJsonOptions(JsonSerializeFormat & handler)
 			rawPatrolRadius = patrol.patrolling ? patrol.patrolRadius : NO_PATROLING;
 		}
 
-		handler.serializeNumeric("patrolRadius", rawPatrolRadius, NO_PATROLING);
+		handler.serializeInt("patrolRadius", rawPatrolRadius, NO_PATROLING);
 
 		if(!handler.saving)
 		{
@@ -1596,7 +1595,7 @@ void CGHeroInstance::serializeJsonOptions(JsonSerializeFormat & handler)
 				{
 					int value = valOfBonuses(Selector::typeSubtype(Bonus::PRIMARY_SKILL, i).And(Selector::sourceType(Bonus::HERO_BASE_SKILL)));
 
-					handler.serializeNumeric<int>(PrimarySkill::names[i], value, 0);
+					handler.serializeInt(PrimarySkill::names[i], value, 0);
 				}
 			}
 		}
@@ -1607,7 +1606,7 @@ void CGHeroInstance::serializeJsonOptions(JsonSerializeFormat & handler)
 			for(int i = 0; i < GameConstants::PRIMARY_SKILLS; ++i)
 			{
 				int value = 0;
-				handler.serializeNumeric<int>(PrimarySkill::names[i], value, 0);
+				handler.serializeInt(PrimarySkill::names[i], value, 0);
 				if(value != 0)
 					pushPrimSkill(static_cast<PrimarySkill::PrimarySkill>(i), value);
 			}
