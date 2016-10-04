@@ -340,7 +340,15 @@ void JsonMapComparer::check(const bool condition, const std::string & message)
 		BOOST_CHECK_MESSAGE(condition, buildMessage(message));
 }
 
-void JsonMapComparer::checkEqualFloat(const double & actual, const double & expected)
+void JsonMapComparer::checkEqualInteger(const si64 actual, const si64 expected)
+{
+	if(actual != expected)
+	{
+		check(false, boost::str(boost::format("'%d' != '%d'") % actual % expected));
+	}
+}
+
+void JsonMapComparer::checkEqualFloat(const double actual, const double expected)
 {
 	if(std::abs(actual - expected) > 1e-6)
 	{
@@ -408,6 +416,9 @@ void JsonMapComparer::checkEqualJson(const JsonNode & actual, const JsonNode & e
 			break;
 		case JsonNode::DATA_STRUCT:
 			checkEqualJson(actual.Struct(), expected.Struct());
+			break;
+		case JsonNode::DATA_INTEGER:
+			checkEqualInteger(actual.Integer(), expected.Integer());
 			break;
 		default:
 			BOOST_FAIL("Unknown Json type");

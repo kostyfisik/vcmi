@@ -120,6 +120,8 @@ void JsonWriter::writeNode(const JsonNode &node)
 			out << "{" << "\n";
 			writeContainer(node.Struct().begin(), node.Struct().end());
 			out << prefix << "}";
+		break; case JsonNode::DATA_INTEGER:
+			out << node.Integer();
 	}
 }
 
@@ -459,6 +461,8 @@ bool JsonParser::extractFloat(JsonNode &node)
 	assert(input[pos] == '-' || (input[pos] >= '0' && input[pos] <= '9'));
 	bool negative=false;
 	double result=0;
+	si64 integerPart = 0;
+	bool isFloat = false;
 
 	if (input[pos] == '-')
 	{
@@ -472,13 +476,16 @@ bool JsonParser::extractFloat(JsonNode &node)
 	//Extract integer part
 	while (input[pos] >= '0' && input[pos] <= '9')
 	{
-		result = result*10+(input[pos]-'0');
+		integerPart = integerPart*10+(input[pos]-'0');
 		pos++;
 	}
+
+	result = integerPart;
 
 	if (input[pos] == '.')
 	{
 		//extract fractional part
+		isFloat = true;
 		pos++;
 		double fractMult = 0.1;
 		if (input[pos] < '0' || input[pos] > '9')
@@ -496,7 +503,7 @@ bool JsonParser::extractFloat(JsonNode &node)
 	{
 		//extract exponential part
 		pos++;
-
+		isFloat = true;
 		bool powerNegative = false;
 		double power = 0;
 
@@ -525,11 +532,23 @@ bool JsonParser::extractFloat(JsonNode &node)
 		result *= std::pow(10, power);
 	}
 
-	if (negative)
-		result = -result;
+	if(isFloat)
+	{
+		if(negative)
+			result = -result;
 
-	node.setType(JsonNode::DATA_FLOAT);
-	node.Float() = result;
+		node.setType(JsonNode::DATA_FLOAT);
+		node.Float() = result;
+	}
+	else
+	{
+		if(negative)
+			integerPart = -integerPart;
+
+		node.setType(JsonNode::DATA_INTEGER);
+		node.Integer() = integerPart;
+	}
+
 	return true;
 }
 
@@ -546,6 +565,8 @@ bool JsonParser::error(const std::string &message, bool warning)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+//TODO: integer support
 
 static const std::unordered_map<std::string, JsonNode::JsonType> stringToType =
 {
@@ -648,6 +669,11 @@ namespace
 			}
 
 			JsonNode::JsonType type = it->second;
+
+			//FIXME: hack for integer values
+			if(data.isNumber() && type == JsonNode::DATA_FLOAT)
+				return "";
+
 			if(type != data.getType() && data.getType() != JsonNode::DATA_NULL)
 				return validator.makeErrorMessage("Type mismatch! Expected " + schema.String());
 			return "";
@@ -1162,7 +1188,9 @@ namespace Validation
 
 		switch (type)
 		{
-			case JsonNode::DATA_FLOAT:  return numberFields;
+			case JsonNode::DATA_FLOAT:
+			case JsonNode::DATA_INTEGER:
+				return numberFields;
 			case JsonNode::DATA_STRING: return stringFields;
 			case JsonNode::DATA_VECTOR: return vectorFields;
 			case JsonNode::DATA_STRUCT: return structFields;

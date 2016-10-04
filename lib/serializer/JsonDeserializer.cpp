@@ -64,7 +64,7 @@ void JsonDeserializer::serializeInternal(const std::string & fieldName, double &
 {
 	const JsonNode & data = current->operator[](fieldName);
 
-	if(data.getType() != JsonNode::DATA_FLOAT)
+	if(!data.isNumber())
 		value = defaultValue ? defaultValue.get() : 0;//todo: report error on not null?
 	else
 		value = data.Float();

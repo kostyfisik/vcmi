@@ -136,7 +136,7 @@ namespace TriggeredEventsDetail
 					throw std::runtime_error("Identifier resolution failed in event condition");
 			}
 
-			if (data["type"].getType() == JsonNode::DATA_FLOAT)
+			if (data["type"].isNumber())
 				event.objectType = data["type"].Float();
 
 			if (!data["value"].isNull())

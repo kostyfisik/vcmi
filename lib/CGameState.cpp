@@ -3197,7 +3197,7 @@ DuelParameters DuelParameters::fromJSON(const std::string &fname)
 			i++;
 		}
 
-		if(n["heroid"].getType() == JsonNode::DATA_FLOAT)
+		if(n["heroid"].isNumber())
 			ss.heroId = n["heroid"].Float();
 		else
 			ss.heroId = -1;
@@ -3240,7 +3240,7 @@ DuelParameters DuelParameters::fromJSON(const std::string &fname)
 		}
 		else
 		{
-			assert(n.getType() == JsonNode::DATA_FLOAT);
+			assert(n.isNumber());
 			oi->ID = 21;
 			oi->pos = n.Float();
 		}
@@ -3254,7 +3254,7 @@ DuelParameters DuelParameters::fromJSON(const std::string &fname)
 		cc.id = n["id"].Float();
 
 #define retrieve(name)								\
-	if(n[ #name ].getType() == JsonNode::DATA_FLOAT)\
+	if(n[ #name ].isNumber())\
 	cc.name = n[ #name ].Float();			\
 	else											\
 	cc.name = -1;
