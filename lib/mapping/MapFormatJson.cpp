@@ -321,11 +321,7 @@ void CMapFormatJson::serializePlayerInfo(JsonSerializeFormat & handler)
 			info.hasMainTown = info.posOfMainTown.valid();
 		}
 
-		//todo:mainHero
-
-		//todo:mainHeroPortrait
-
-		//todo:mainCustomHeroName
+		handler.serializeString("mainHero", info.mainHeroInstance);//must be before "heroes"
 
 		//heroes
 		if(handler.saving)
@@ -369,6 +365,7 @@ void CMapFormatJson::serializePlayerInfo(JsonSerializeFormat & handler)
 			for(const auto & hero : handler.getCurrent().Struct())
 			{
                 const JsonNode & data = hero.second;
+                const std::string instanceName = hero.first;
 
                 SHeroName hname;
 				hname.heroId = -1;
@@ -380,6 +377,17 @@ void CMapFormatJson::serializePlayerInfo(JsonSerializeFormat & handler)
 				}
 
                 hname.heroName = data["name"].String();
+
+                if(instanceName == info.mainHeroInstance)
+				{
+					//this is main hero
+					info.mainCustomHeroName = hname.heroName;
+					info.hasRandomHero = (hname.heroId == -1);
+					info.mainCustomHeroId = hname.heroId;
+					info.mainCustomHeroPortrait = -1;
+					//todo:mainHeroPortrait
+				}
+
                 info.heroesNames.push_back(hname);
 			}
 		}
