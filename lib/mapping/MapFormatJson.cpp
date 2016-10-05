@@ -608,10 +608,15 @@ void CMapFormatJson::writeDisposedHeroes(JsonSerializeFormat & handler)
 	}
 }
 
+void CMapFormatJson::serializeRumors(JsonSerializeFormat & handler)
+{
+	auto rumors = handler.enterArray("rumors");
+	rumors.serializeStruct(map->rumors);
+}
+
 void CMapFormatJson::serializeOptions(JsonSerializeFormat & handler)
 {
-	//todo:rumors
-
+	serializeRumors(handler);
 	//todo:predefinedHeroes
 
 	handler.serializeLIC("allowedAbilities", &CHeroHandler::decodeSkill, &CHeroHandler::encodeSkill, VLC->heroh->getDefaultAllowedAbilities(), map->allowedAbilities);

@@ -11,6 +11,7 @@
 #include "../CGeneralTextHandler.h"
 #include "../spells/CSpellHandler.h"
 #include "CMapEditManager.h"
+#include "../serializer/JsonSerializeFormat.h"
 
 SHeroName::SHeroName() : heroId(-1)
 {
@@ -77,6 +78,12 @@ EventCondition::EventCondition(EWinLoseType condition, si32 value, si32 objectTy
 	position(position),
 	condition(condition)
 {}
+
+void Rumor::serializeJson(JsonSerializeFormat & handler)
+{
+	handler.serializeString("name", name);
+	handler.serializeString("text", text);
+}
 
 DisposedHero::DisposedHero() : heroId(0), portrait(255), players(0)
 {

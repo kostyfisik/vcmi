@@ -100,6 +100,8 @@ protected:
 
 	void readDisposedHeroes(JsonSerializeFormat & handler);
 
+	void serializeRumors(JsonSerializeFormat & handler);
+
 	///common part of map attributes saving/loading
 	void serializeOptions(JsonSerializeFormat & handler);
 

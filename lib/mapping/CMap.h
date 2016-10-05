@@ -214,11 +214,16 @@ struct DLL_LINKAGE Rumor
 	std::string name;
 	std::string text;
 
+	Rumor() = default;
+	~Rumor() = default;
+
 	template <typename Handler>
 	void serialize(Handler & h, const int version)
 	{
 		h & name & text;
 	}
+
+	void serializeJson(JsonSerializeFormat & handler);
 };
 
 /// The disposed hero struct describes which hero can be hired from which player.
