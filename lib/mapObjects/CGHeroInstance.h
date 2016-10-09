@@ -256,6 +256,9 @@ public:
 	std::string getObjectName() const override;
 protected:
 	void setPropertyDer(ui8 what, ui32 val) override;//synchr
+	///common part of hero instance and hero definition
+	void serializeCommonOptions(JsonSerializeFormat & handler);
+
 	void serializeJsonOptions(JsonSerializeFormat & handler) override;
 
 private:

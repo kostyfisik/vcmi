@@ -674,17 +674,6 @@ CMapLoaderJson::CMapLoaderJson(CInputStream * stream):
 
 }
 
-si32 CMapLoaderJson::getIdentifier(const std::string & type, const std::string & name)
-{
-	boost::optional<si32> res = VLC->modh->identifiers.getIdentifier("core", type, name, false);
-
-	if(!res)
-	{
-		throw new std::runtime_error("Map load failed. Identifier not resolved.");
-	}
-	return res.get();
-}
-
 std::unique_ptr<CMap> CMapLoaderJson::loadMap()
 {
 	LOG_TRACE(logGlobal);

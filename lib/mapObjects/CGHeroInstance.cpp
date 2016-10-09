@@ -1508,69 +1508,12 @@ bool CGHeroInstance::hasVisions(const CGObjectInstance * target, const int subty
 	return (distance < visionsRange) && (target->pos.z == pos.z);
 }
 
-void CGHeroInstance::serializeJsonOptions(JsonSerializeFormat & handler)
+void CGHeroInstance::serializeCommonOptions(JsonSerializeFormat & handler)
 {
-	serializeJsonOwner(handler);
-
-	if(handler.saving)
-	{
-		if(ID == Obj::HERO || ID == Obj::PRISON)
-		{
-			if(type)
-			{
-				handler.serializeString("type", type->identifier);
-			}
-			else
-			{
-				auto temp = VLC->heroh->heroes[subID]->identifier;
-				handler.serializeString("type", temp);
-			}
-		}
-	}
-	else
-	{
-		if(ID == Obj::HERO || ID == Obj::PRISON)
-		{
-			std::string typeName;
-			handler.serializeString("type", typeName);
-
-			auto rawId = VLC->modh->identifiers.getIdentifier("core", "hero", typeName);
-
-			if(rawId)
-				subID = rawId.get();
-			else
-				subID = 0; //fallback to Orrin, throw error instead?
-		}
-	}
-	CCreatureSet::serializeJson(handler, "army", 7);
-	handler.serializeBool<ui8>("tightFormation", formation, 1, 0, 0);
-
-	if(handler.saving)
-		CArtifactSet::serializeJsonArtifacts(handler, "artifacts", nullptr);
-
 	handler.serializeString("biography", biography);
 	handler.serializeInt("experience", exp, 0);
 	handler.serializeString("name", name);
 	handler.serializeBool<ui8>("female", sex, 1, 0, 0xFF);
-
-	{
-		static const int NO_PATROLING = -1;
-		int rawPatrolRadius = NO_PATROLING;
-
-		if(handler.saving)
-		{
-			rawPatrolRadius = patrol.patrolling ? patrol.patrolRadius : NO_PATROLING;
-		}
-
-		handler.serializeInt("patrolRadius", rawPatrolRadius, NO_PATROLING);
-
-		if(!handler.saving)
-		{
-			patrol.patrolling = (rawPatrolRadius > NO_PATROLING);
-			patrol.initialPos = convertPosition(pos, false);
-			patrol.patrolRadius = (rawPatrolRadius > NO_PATROLING) ? rawPatrolRadius : 0;
-		}
-	}
 	handler.serializeId("portrait", portrait, -1, &VLC->heroh->decodeHero, &VLC->heroh->encodeHero);
 
 	{
@@ -1684,6 +1627,68 @@ void CGHeroInstance::serializeJsonOptions(JsonSerializeFormat & handler)
 	}
 
 	handler.serializeIdArray("spellBook", spells, &CSpellHandler::decodeSpell, &CSpellHandler::encodeSpell);
+
+	if(handler.saving)
+		CArtifactSet::serializeJsonArtifacts(handler, "artifacts", nullptr);
+}
+
+void CGHeroInstance::serializeJsonOptions(JsonSerializeFormat & handler)
+{
+	serializeCommonOptions(handler);
+
+	serializeJsonOwner(handler);
+
+	if(handler.saving)
+	{
+		if(ID == Obj::HERO || ID == Obj::PRISON)
+		{
+			if(type)
+			{
+				handler.serializeString("type", type->identifier);
+			}
+			else
+			{
+				auto temp = VLC->heroh->heroes[subID]->identifier;
+				handler.serializeString("type", temp);
+			}
+		}
+	}
+	else
+	{
+		if(ID == Obj::HERO || ID == Obj::PRISON)
+		{
+			std::string typeName;
+			handler.serializeString("type", typeName);
+
+			auto rawId = VLC->modh->identifiers.getIdentifier("core", "hero", typeName);
+
+			if(rawId)
+				subID = rawId.get();
+			else
+				subID = 0; //fallback to Orrin, throw error instead?
+		}
+	}
+	CCreatureSet::serializeJson(handler, "army", 7);
+	handler.serializeBool<ui8>("tightFormation", formation, 1, 0, 0);
+
+	{
+		static const int NO_PATROLING = -1;
+		int rawPatrolRadius = NO_PATROLING;
+
+		if(handler.saving)
+		{
+			rawPatrolRadius = patrol.patrolling ? patrol.patrolRadius : NO_PATROLING;
+		}
+
+		handler.serializeInt("patrolRadius", rawPatrolRadius, NO_PATROLING);
+
+		if(!handler.saving)
+		{
+			patrol.patrolling = (rawPatrolRadius > NO_PATROLING);
+			patrol.initialPos = convertPosition(pos, false);
+			patrol.patrolRadius = (rawPatrolRadius > NO_PATROLING) ? rawPatrolRadius : 0;
+		}
+	}
 }
 
 bool CGHeroInstance::isMissionCritical() const

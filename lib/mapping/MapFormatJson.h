@@ -184,8 +184,6 @@ private:
 		void configure();
 	};
 
-	si32 getIdentifier(const std::string & type, const std::string & name);
-
 	/**
 	 * Reads the map header.
 	 */
