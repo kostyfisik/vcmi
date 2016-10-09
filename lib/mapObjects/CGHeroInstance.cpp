@@ -1508,6 +1508,35 @@ bool CGHeroInstance::hasVisions(const CGObjectInstance * target, const int subty
 	return (distance < visionsRange) && (target->pos.z == pos.z);
 }
 
+std::string CGHeroInstance::getHeroTypeName() const
+{
+	if(ID == Obj::HERO || ID == Obj::PRISON)
+	{
+		if(type)
+		{
+			return type->identifier;
+		}
+		else
+		{
+			return VLC->heroh->heroes[subID]->identifier;
+		}
+	}
+	return "";
+}
+
+void CGHeroInstance::setHeroTypeName(const std::string & identifier)
+{
+	if(ID == Obj::HERO || ID == Obj::PRISON)
+	{
+		auto rawId = VLC->modh->identifiers.getIdentifier("core", "hero", identifier);
+
+		if(rawId)
+			subID = rawId.get();
+		else
+			subID = 0; //fallback to Orrin, throw error instead?
+	}
+}
+
 void CGHeroInstance::serializeCommonOptions(JsonSerializeFormat & handler)
 {
 	handler.serializeString("biography", biography);
@@ -1638,36 +1667,16 @@ void CGHeroInstance::serializeJsonOptions(JsonSerializeFormat & handler)
 
 	serializeJsonOwner(handler);
 
-	if(handler.saving)
+	if(ID == Obj::HERO || ID == Obj::PRISON)
 	{
-		if(ID == Obj::HERO || ID == Obj::PRISON)
-		{
-			if(type)
-			{
-				handler.serializeString("type", type->identifier);
-			}
-			else
-			{
-				auto temp = VLC->heroh->heroes[subID]->identifier;
-				handler.serializeString("type", temp);
-			}
-		}
+		std::string typeName;
+		if(handler.saving)
+			typeName = getHeroTypeName();
+		handler.serializeString("type", typeName);
+		if(!handler.saving)
+			setHeroTypeName(typeName);
 	}
-	else
-	{
-		if(ID == Obj::HERO || ID == Obj::PRISON)
-		{
-			std::string typeName;
-			handler.serializeString("type", typeName);
 
-			auto rawId = VLC->modh->identifiers.getIdentifier("core", "hero", typeName);
-
-			if(rawId)
-				subID = rawId.get();
-			else
-				subID = 0; //fallback to Orrin, throw error instead?
-		}
-	}
 	CCreatureSet::serializeJson(handler, "army", 7);
 	handler.serializeBool<ui8>("tightFormation", formation, 1, 0, 0);
 
@@ -1689,6 +1698,11 @@ void CGHeroInstance::serializeJsonOptions(JsonSerializeFormat & handler)
 			patrol.patrolRadius = (rawPatrolRadius > NO_PATROLING) ? rawPatrolRadius : 0;
 		}
 	}
+}
+
+void CGHeroInstance::serializeJsonDefinition(JsonSerializeFormat & handler)
+{
+	serializeCommonOptions(handler);
 }
 
 bool CGHeroInstance::isMissionCritical() const

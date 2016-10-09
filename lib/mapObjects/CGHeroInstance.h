@@ -265,6 +265,11 @@ private:
 	void levelUpAutomatically(CRandomGenerator & rand);
 
 public:
+	std::string getHeroTypeName() const;
+	void setHeroTypeName(const std::string & identifier);
+
+	void serializeJsonDefinition(JsonSerializeFormat & handler);
+
 	template <typename Handler> void serialize(Handler &h, const int version)
 	{
 		h & static_cast<CArmedInstance&>(*this);

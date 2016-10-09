@@ -614,10 +614,49 @@ void CMapFormatJson::serializeRumors(JsonSerializeFormat & handler)
 	rumors.serializeStruct(map->rumors);
 }
 
+void CMapFormatJson::serializePredefinedHeroes(JsonSerializeFormat & handler)
+{
+    //todo:serializePredefinedHeroes
+
+    if(handler.saving)
+	{
+		if(!map->predefinedHeroes.empty())
+		{
+			auto predefinedHeroes = handler.enterStruct("predefinedHeroes");
+
+            for(auto & hero : map->predefinedHeroes)
+			{
+                auto predefinedHero = handler.enterStruct(hero->getHeroTypeName());
+
+                hero->serializeJsonDefinition(handler);
+			}
+		}
+	}
+	else
+	{
+		auto predefinedHeroes = handler.enterStruct("predefinedHeroes");
+
+        const JsonNode & data = handler.getCurrent();
+
+        for(const auto & p : data.Struct())
+		{
+			auto predefinedHero = handler.enterStruct(p.first);
+
+			CGHeroInstance * hero = new CGHeroInstance();
+			hero->ID = Obj::HERO;
+            hero->setHeroTypeName(p.first);
+            hero->serializeJsonDefinition(handler);
+
+            map->predefinedHeroes.push_back(hero);
+		}
+	}
+}
+
 void CMapFormatJson::serializeOptions(JsonSerializeFormat & handler)
 {
 	serializeRumors(handler);
-	//todo:predefinedHeroes
+
+	serializePredefinedHeroes(handler);
 
 	handler.serializeLIC("allowedAbilities", &CHeroHandler::decodeSkill, &CHeroHandler::encodeSkill, VLC->heroh->getDefaultAllowedAbilities(), map->allowedAbilities);
 
