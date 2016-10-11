@@ -290,7 +290,7 @@ public:
 	{
 		h & factions;
 
-		if(version >= 762)
+		if(version >= 770)
 		{
 			h & randomTown;
 		}

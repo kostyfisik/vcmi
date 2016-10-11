@@ -98,7 +98,7 @@ struct DLL_LINKAGE PlayerInfo
 				mainCustomHeroPortrait & mainCustomHeroName & heroesNames & hasMainTown & generateHeroAtMainTown &
 				posOfMainTown & team & generateHero;
 
-		if(version >= 762)
+		if(version >= 770)
 		{
 			h & mainHeroInstance;
 		}

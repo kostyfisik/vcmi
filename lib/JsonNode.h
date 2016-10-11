@@ -125,7 +125,7 @@ public:
 			break; case DATA_VECTOR: h & data.Vector;
 			break; case DATA_STRUCT: h & data.Struct;
 		}
-		if(version >= 762)
+		if(version >= 770)
 		{
             if(type == DATA_INTEGER)
 				h & data.Integer;
