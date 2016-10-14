@@ -1543,7 +1543,7 @@ void CGHeroInstance::serializeCommonOptions(JsonSerializeFormat & handler)
 	handler.serializeInt("experience", exp, 0);
 	handler.serializeString("name", name);
 	handler.serializeBool<ui8>("female", sex, 1, 0, 0xFF);
-	//handler.serializeId("portrait", portrait, -1, &VLC->heroh->decodeHero, &VLC->heroh->encodeHero);
+	handler.serializeInt("portrait", portrait, UNINITIALIZED_PORTRAIT);
 
 	{
 		if(handler.saving)
